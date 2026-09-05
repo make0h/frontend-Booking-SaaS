@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import dynamic from 'next/dynamic';
+import toast from 'react-hot-toast'; // Importamos la magia
 
 const CalendarWidget = dynamic(() => import('./CalendarWidget'), { 
   ssr: false,
@@ -26,16 +27,33 @@ export default function DashboardPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   
-  const [newDate, setNewDate] = useState('');
+  // Estados para el Modal de Crear (Paquete / Individual)
   const [selectedTeacher, setSelectedTeacher] = useState('');
   const [selectedService, setSelectedService] = useState('');
-  const [selectedCustomer, setSelectedCustomer] = useState('');
   const [formError, setFormError] = useState('');
 
+  // Buscador de Alumnos
+  const [selectedCustomer, setSelectedCustomer] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Carrito de Fechas
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const [tempDate, setTempDate] = useState('');
+
+  // Estados para Editar
   const [editDate, setEditDate] = useState('');
   const [editTeacher, setEditTeacher] = useState('');
   
   const router = useRouter();
+
+  // FILTRO INTELIGENTE DE ERRORES
+  const getErrorMessage = (err: any) => {
+    const data = err.response?.data;
+    if (typeof data === 'string' && !data.includes('<html')) return data;
+    return 'Ocurrió un error inesperado al conectar con el servidor.';
+  };
 
   const fetchData = async () => {
     try {
@@ -61,6 +79,15 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchData();
+
+    // Cierra el buscador si haces clic fuera de él
+    const handleClickOutside = (event: any) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [router]);
 
   useEffect(() => {
@@ -73,38 +100,73 @@ export default function DashboardPage() {
     }
   }, [selectedAppointment]);
 
+  // Lógica del Buscador de Alumnos
+  const filteredCustomers = customers.filter(c => 
+    c.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const selectCustomerFromSearch = (id: number, name: string) => {
+    setSelectedCustomer(id.toString());
+    setSearchTerm(name);
+    setShowDropdown(false);
+  };
+
+  // Lógica del Carrito de Fechas
+  const addDateToCart = () => {
+    if (!tempDate) return setFormError("Selecciona una fecha y hora");
+    const selectedDateObj = new Date(tempDate);
+    if (selectedDateObj < new Date()) return setFormError("No puedes agendar clases en el pasado");
+    if (selectedDates.includes(tempDate)) return setFormError("Esa fecha ya está en la lista");
+    
+    setFormError('');
+    setSelectedDates([...selectedDates, tempDate].sort());
+    setTempDate('');
+  };
+
+  const removeDate = (dateToRemove: string) => {
+    setSelectedDates(selectedDates.filter(d => d !== dateToRemove));
+  };
+
   const handleCreateAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(''); 
 
-    const selectedDateObj = new Date(newDate);
-    if (selectedDateObj < new Date()) {
-      setFormError('No puedes agendar una clase en el pasado.');
-      return;
-    }
+    if (!selectedCustomer) return setFormError('Debes buscar y seleccionar un alumno');
+    if (selectedDates.length === 0) return setFormError('Añade al menos una fecha a la lista');
+
+    const loadingToast = toast.loading(`Agendando ${selectedDates.length} clase(s)...`);
 
     try {
-      await api.post('/appointments', {
+      // Llamamos al nuevo endpoint "bulk"
+      await api.post('/appointments/bulk', {
         businessId: 1,
         customerId: parseInt(selectedCustomer),
         serviceId: parseInt(selectedService),
         employeeId: parseInt(selectedTeacher),
-        startTime: newDate
+        startTimes: selectedDates
       });
       
+      toast.success('¡Clases agendadas con éxito!', { id: loadingToast });
+      
+      // Limpiamos el modal
       setShowCreateModal(false);
-      setNewDate('');
+      setSelectedDates([]);
+      setTempDate('');
       setSelectedTeacher('');
       setSelectedService('');
       setSelectedCustomer('');
+      setSearchTerm('');
+      
       fetchData(); 
     } catch (error: any) {
-      setFormError(error.response?.data || 'Error al agendar la clase');
+      setFormError(getErrorMessage(error));
+      toast.error('Hubo un problema al agendar', { id: loadingToast });
     }
   };
 
   const handleUpdateAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
+    const loadingToast = toast.loading('Guardando cambios...');
     try {
       await api.put(`/appointments/${selectedAppointment.id}`, {
         id: selectedAppointment.id,
@@ -115,21 +177,24 @@ export default function DashboardPage() {
         startTime: editDate,
         status: selectedAppointment.status
       });
+      toast.success('Clase actualizada', { id: loadingToast });
       setShowEditModal(false);
       fetchData();
     } catch (error: any) {
-      alert(error.response?.data || 'Error al actualizar la cita');
+      toast.error(getErrorMessage(error), { id: loadingToast, duration: 5000 });
     }
   };
 
   const handleCancelAppointment = async () => {
-    if (confirm('¿Estás totalmente seguro de cancelar esta clase? Esta acción notificará al sistema.')) {
+    if (window.confirm('¿Estás totalmente seguro de cancelar esta clase? Esta acción notificará al sistema.')) {
+      const loadingToast = toast.loading('Cancelando clase...');
       try {
-        await api.put(`/appointments/${selectedAppointment.id}/cancel`);
+        const response = await api.put(`/appointments/${selectedAppointment.id}/cancel`);
+        toast.success(response.data || 'Clase cancelada correctamente', { id: loadingToast, duration: 5000 });
         setShowEditModal(false);
         fetchData();
       } catch (error: any) {
-        alert(error.response?.data || 'Error al cancelar la clase');
+        toast.error(getErrorMessage(error), { id: loadingToast, duration: 5000 });
       }
     }
   };
@@ -225,12 +290,12 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* MODAL 1: AGENDAR CLASE */}
+      {/* MODAL 1: AGENDAR CLASE (CON BUSCADOR Y CARRITO DE FECHAS) */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 rounded-2xl shadow-2xl border border-slate-800 w-full max-w-md max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-slate-900 rounded-2xl shadow-2xl border border-slate-800 w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
             <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-900 sticky top-0 z-10">
-              <h3 className="text-lg font-bold text-white">Agendar Nueva Clase</h3>
+              <h3 className="text-lg font-bold text-white">Agendar Clases</h3>
               <button onClick={() => setShowCreateModal(false)} className="text-slate-500 hover:text-slate-300 font-bold text-xl">&times;</button>
             </div>
             
@@ -240,35 +305,105 @@ export default function DashboardPage() {
               </div>
             )}
             
-            <form onSubmit={handleCreateAppointment} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-1">Alumno</label>
-                <select value={selectedCustomer} onChange={(e) => setSelectedCustomer(e.target.value)} className="w-full border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white outline-none" required>
-                  <option value="" disabled>Selecciona un alumno...</option>
-                  {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+            <form onSubmit={handleCreateAppointment} className="p-6 space-y-5">
+              
+              {/* BUSCADOR DE ALUMNO */}
+              <div className="relative" ref={dropdownRef}>
+                <label className="block text-sm font-semibold text-slate-300 mb-1">Buscar Alumno</label>
+                <input 
+                  type="text" 
+                  placeholder="Escribe el nombre..." 
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setSelectedCustomer(''); 
+                    setShowDropdown(true);
+                  }}
+                  onFocus={() => setShowDropdown(true)}
+                  className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 outline-none" 
+                />
+                
+                {showDropdown && searchTerm && (
+                  <div className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl max-h-48 overflow-y-auto">
+                    {filteredCustomers.length > 0 ? (
+                      filteredCustomers.map(c => (
+                        <div 
+                          key={c.id} 
+                          onClick={() => selectCustomerFromSearch(c.id, c.name)}
+                          className="p-3 hover:bg-slate-700 cursor-pointer flex justify-between items-center border-b border-slate-700/50 last:border-0"
+                        >
+                          <span className="text-white text-sm font-medium">{c.name}</span>
+                          <span className="text-xs font-bold text-cyan-400 bg-cyan-900/30 px-2 py-1 rounded-md">
+                            {c.monthlyCredits || 0} Créditos
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-3 text-slate-400 text-sm text-center">No se encontraron alumnos</div>
+                    )}
+                  </div>
+                )}
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-1">Servicio / Nivel</label>
-                <select value={selectedService} onChange={(e) => setSelectedService(e.target.value)} className="w-full border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white outline-none" required>
-                  <option value="" disabled>Selecciona la clase...</option>
-                  {services.map(s => <option key={s.id} value={s.id}>{s.name} ({s.durationMinutes} min)</option>)}
-                </select>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-1">Servicio / Nivel</label>
+                  <select value={selectedService} onChange={(e) => setSelectedService(e.target.value)} className="w-full border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white outline-none" required>
+                    <option value="" disabled>Seleccionar...</option>
+                    {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-1">Instructor</label>
+                  <select value={selectedTeacher} onChange={(e) => setSelectedTeacher(e.target.value)} className="w-full border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white outline-none" required>
+                    <option value="" disabled>Seleccionar...</option>
+                    {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-1">Profesor Asignado</label>
-                <select value={selectedTeacher} onChange={(e) => setSelectedTeacher(e.target.value)} className="w-full border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white outline-none" required>
-                  <option value="" disabled>Selecciona un profesor...</option>
-                  {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
+              
+              {/* CARRITO DE FECHAS */}
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                <label className="block text-sm font-semibold text-cyan-400 mb-2">Añadir Fechas al Paquete</label>
+                <div className="flex gap-2 mb-3">
+                  <input 
+                    type="datetime-local" 
+                    value={tempDate} 
+                    onChange={(e) => setTempDate(e.target.value)} 
+                    className="flex-1 border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white outline-none"
+                  />
+                  <button 
+                    type="button" 
+                    onClick={addDateToCart}
+                    className="bg-slate-700 text-white font-bold px-4 rounded-xl hover:bg-cyan-600 transition-colors"
+                  >
+                    Añadir
+                  </button>
+                </div>
+
+                <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
+                  {selectedDates.length === 0 ? (
+                    <p className="text-slate-500 text-xs text-center py-2 italic">Añade fechas para armar el horario del alumno.</p>
+                  ) : (
+                    selectedDates.map((date, index) => (
+                      <div key={index} className="flex justify-between items-center bg-slate-800 p-2.5 rounded-lg border border-slate-700/50">
+                        <span className="text-slate-200 text-sm">
+                          {new Date(date).toLocaleString('es-CO', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <button type="button" onClick={() => removeDate(date)} className="text-red-400 hover:text-red-300 px-2 font-bold">
+                          ✖
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-1">Fecha y Hora</label>
-                <input type="datetime-local" value={newDate} onChange={(e) => setNewDate(e.target.value)} className="w-full border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white outline-none" required/>
-              </div>
-              <div className="pt-4 flex gap-3">
+
+              <div className="pt-2 flex gap-3">
                 <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 px-4 py-3 border border-slate-700 text-slate-300 font-semibold rounded-xl hover:bg-slate-800">Cancelar</button>
-                <button type="submit" className="flex-1 px-4 py-3 bg-cyan-600 text-white font-semibold rounded-xl hover:bg-cyan-500 shadow-md">Agendar</button>
+                <button type="submit" disabled={selectedDates.length === 0} className="flex-1 px-4 py-3 bg-cyan-600 text-white font-semibold rounded-xl hover:bg-cyan-500 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+                  Agendar {selectedDates.length} Clase(s)
+                </button>
               </div>
             </form>
           </div>

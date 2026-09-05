@@ -1,8 +1,9 @@
 import axios from 'axios';
 
-// URL limpia apuntando a la IP de tu compu
 const api = axios.create({
-  baseURL: 'https://bookingsaas-x6pk.onrender.com/api',
+  // Vercel usará NEXT_PUBLIC_API_URL (Render). 
+  // Tu PC usará localhost:5218 automáticamente al no encontrar la variable.
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5218/api',
 });
 
 api.interceptors.request.use((config) => {
