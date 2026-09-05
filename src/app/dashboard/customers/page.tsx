@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import toast from 'react-hot-toast';
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Estados para el Modal
+  // Estados para el Modal de Crear/Editar
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -20,7 +21,18 @@ export default function CustomersPage() {
   const [credits, setCredits] = useState('4'); 
   const [formError, setFormError] = useState('');
 
+  // Estados para el Modal de Confirmación de Borrado
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState<{id: number, name: string} | null>(null);
+
   const router = useRouter();
+
+  // FILTRO INTELIGENTE DE ERRORES
+  const getErrorMessage = (err: any) => {
+    const data = err.response?.data;
+    if (typeof data === 'string' && !data.includes('<html')) return data;
+    return 'Ocurrió un error inesperado al conectar con el servidor.';
+  };
 
   const fetchCustomers = async () => {
     try {
@@ -59,6 +71,8 @@ export default function CustomersPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
+    
+    const loadingToast = toast.loading(modalMode === 'create' ? 'Inscribiendo...' : 'Guardando cambios...');
 
     const payload = {
       name,
@@ -71,26 +85,40 @@ export default function CustomersPage() {
     try {
       if (modalMode === 'create') {
         await api.post('/users/customers', payload);
+        toast.success('¡Alumno inscrito con éxito!', { id: loadingToast });
       } else {
         await api.put(`/users/customers/${editingId}`, payload);
+        toast.success('Datos actualizados', { id: loadingToast });
       }
       
       setShowModal(false);
       resetForm();
       fetchCustomers(); 
     } catch (error: any) {
-      setFormError(error.response?.data || `Error al ${modalMode === 'create' ? 'registrar' : 'actualizar'} el cliente`);
+      const errorMsg = getErrorMessage(error);
+      setFormError(errorMsg); 
+      toast.error('Revisa los datos e intenta de nuevo', { id: loadingToast });
     }
   };
 
-  const handleDeleteCustomer = async (id: number, customerName: string) => {
-    if (confirm(`¿Estás totalmente seguro de eliminar al alumno "${customerName}"? Esta acción no se puede deshacer.`)) {
-      try {
-        await api.delete(`/users/customers/${id}`);
-        fetchCustomers();
-      } catch (error: any) {
-        alert(error.response?.data || 'Error al eliminar el cliente');
-      }
+  const confirmDelete = (id: number, name: string) => {
+    setCustomerToDelete({ id, name });
+    setShowDeleteModal(true);
+  };
+
+  const executeDelete = async () => {
+    if (!customerToDelete) return;
+    
+    const loadingToast = toast.loading('Eliminando alumno...');
+    
+    try {
+      await api.delete(`/users/customers/${customerToDelete.id}`);
+      toast.success('Alumno eliminado correctamente', { id: loadingToast });
+      fetchCustomers();
+      setShowDeleteModal(false);
+      setCustomerToDelete(null);
+    } catch (error: any) {
+      toast.error(getErrorMessage(error), { id: loadingToast, duration: 5000 });
     }
   };
 
@@ -147,21 +175,16 @@ export default function CustomersPage() {
                   </div>
                 </div>
                 
-                {/* 
-                  BOTONES DE EDICIÓN Y BORRADO (Móvil vs Desktop)
-                  - En celular (por defecto): Visibles siempre, fondo oscuro y un poco más grandes para que los dedos los toquen fácil.
-                  - En PC (md:): Se esconden (opacity-0) y solo aparecen cuando el mouse pasa por la tarjeta (group-hover).
-                */}
                 <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                   <button 
-                    onClick={() => openEditModal(customer)} // Usa 'teacher' en el archivo de profesores
+                    onClick={() => openEditModal(customer)} 
                     className="flex items-center justify-center w-10 h-10 md:w-8 md:h-8 bg-slate-800 md:bg-transparent text-slate-400 md:text-slate-500 hover:text-cyan-400 hover:bg-slate-700 md:hover:bg-slate-800 rounded-lg transition-colors"
                     title="Editar"
                   >
                     ✏️
                   </button>
                   <button 
-                    onClick={() => handleDeleteCustomer(customer.id, customer.name)} // Usa handleDeleteTeacher en el otro
+                    onClick={() => confirmDelete(customer.id, customer.name)} 
                     className="flex items-center justify-center w-10 h-10 md:w-8 md:h-8 bg-slate-800 md:bg-transparent text-slate-400 md:text-slate-500 hover:text-red-400 hover:bg-slate-700 md:hover:bg-slate-800 rounded-lg transition-colors"
                     title="Eliminar"
                   >
@@ -185,7 +208,7 @@ export default function CustomersPage() {
         )}
       </div>
 
-      {/* MODAL DINÁMICO (Sirve para Crear y Editar) */}
+      {/* MODAL DINÁMICO (Crear y Editar) */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
@@ -245,6 +268,40 @@ export default function CustomersPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMACIÓN DE BORRADO */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 w-full max-w-sm overflow-hidden p-6 text-center animate-in fade-in zoom-in-95 duration-200">
+            
+            <div className="w-16 h-16 bg-red-500/10 text-red-500 border border-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner">
+              ⚠️
+            </div>
+            
+            <h3 className="text-xl font-extrabold text-white mb-2">
+              ¿Eliminar a {customerToDelete?.name}?
+            </h3>
+            <p className="text-slate-400 mb-6 text-sm">
+              Esta acción no se puede deshacer. Se eliminarán sus accesos.
+            </p>
+            
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowDeleteModal(false)} 
+                className="flex-1 px-4 py-3 border border-slate-700 text-slate-300 font-bold rounded-xl hover:bg-slate-800 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={executeDelete} 
+                className="flex-1 px-4 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-500 shadow-md shadow-red-900/20 transition-all active:scale-95"
+              >
+                Sí, eliminar
+              </button>
+            </div>
           </div>
         </div>
       )}
