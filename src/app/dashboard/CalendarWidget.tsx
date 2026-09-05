@@ -9,38 +9,43 @@ import { useEffect, useState } from 'react';
 export default function CalendarWidget({ events, onEventClick, onDateClick }: any) {
   const [isMobile, setIsMobile] = useState(false);
 
-  // Detector de pantalla para cambiar la vista automáticamente
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    checkMobile(); // Check inicial
+    checkMobile(); 
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Así renderizamos la tarjeta dentro del calendario (Igual a la imagen image_01ff08.png)
   const renderEventContent = (eventInfo: any) => {
     const start = eventInfo.event.start;
     const end = eventInfo.event.end;
     
-    // Formateamos la hora ej. "19:00-20:30"
-    const startTime = start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-    const endTime = end ? end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '';
+    // Formato amigable de 12 horas para el texto interno
+    const startTime = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+    const endTime = end ? end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
     
     const customer = eventInfo.event.extendedProps?.customerName || '';
     const service = eventInfo.event.extendedProps?.serviceName || '';
+    const teacher = eventInfo.event.extendedProps?.teacherName || '';
+
+    // Tooltip nativo que aparece al hacer hover
+    const tooltipText = `Horario: ${startTime} - ${endTime}\nClase: ${eventInfo.event.title}\nAlumno: ${customer}\nInstructor: ${teacher}`;
 
     return (
-      <div className="flex flex-col p-1.5 md:p-2 w-full h-full text-left overflow-hidden text-white">
-        <div className="text-[10px] md:text-xs font-bold leading-tight mb-0.5 opacity-90 tracking-wide">
-          {startTime}-{endTime}
+      <div 
+        title={tooltipText} 
+        className="flex flex-col p-1 w-full h-full text-left overflow-hidden text-white"
+      >
+        <div className="text-[10px] md:text-[11px] font-bold leading-none mb-0.5 opacity-90">
+          {startTime}
         </div>
-        <div className="text-xs md:text-sm font-extrabold leading-tight truncate">
+        <div className="text-[11px] md:text-sm font-extrabold leading-tight truncate">
           {eventInfo.event.title}
         </div>
         {(customer || service) && (
-          <div className="text-[10px] md:text-xs font-medium leading-tight truncate mt-1 opacity-80">
+          <div className="text-[10px] md:text-xs font-medium leading-tight truncate mt-0.5 opacity-80">
             {customer && <span>👤 {customer}</span>}
           </div>
         )}
@@ -53,18 +58,21 @@ export default function CalendarWidget({ events, onEventClick, onDateClick }: an
       <FullCalendar
         plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
         initialView={isMobile ? 'timeGridDay' : 'timeGridWeek'}
-        // Ocultamos todo el día y definimos horario de piscina (ajústalo si abren más temprano/tarde)
         allDaySlot={false}
         slotMinTime="06:00:00"
         slotMaxTime="22:00:00"
         slotDuration="00:30:00"
         expandRows={true}
-        height="700px" // Altura fija para que el scroll funcione bien en móvil
+        height="700px" 
         events={events}
         eventClick={onEventClick}
         dateClick={onDateClick}
         eventContent={renderEventContent}
         nowIndicator={true}
+        // NUEVO: Formato de días claros (ej. "lunes 14")
+        dayHeaderFormat={{ weekday: 'long', day: 'numeric' }}
+        // NUEVO: Formato de horas claro en el eje izquierdo (ej. "6:00 pm")
+        slotLabelFormat={{ hour: 'numeric', minute: '2-digit', meridiem: 'short' }}
         headerToolbar={{
           left: 'prev,next today',
           center: 'title',
@@ -75,13 +83,11 @@ export default function CalendarWidget({ events, onEventClick, onDateClick }: an
           week: 'Semana',
           day: 'Día'
         }}
-        locale="es" // Días y meses en español
+        locale="es" 
       />
 
-      {/* ESTILOS GLOBALES PARA IGUALAR TU IMAGEN */}
       <style jsx global>{`
         .calendar-container .fc {
-          /* Colores base para igualar el mockup */
           --fc-border-color: #334155; 
           --fc-page-bg-color: #0f172a; 
           --fc-neutral-bg-color: #1e293b;
@@ -89,7 +95,6 @@ export default function CalendarWidget({ events, onEventClick, onDateClick }: an
           font-family: inherit;
         }
 
-        /* Cabeceras de los días */
         .calendar-container .fc-theme-standard th {
           background-color: #1e293b;
           border-color: #334155;
@@ -97,14 +102,12 @@ export default function CalendarWidget({ events, onEventClick, onDateClick }: an
           text-transform: capitalize;
         }
 
-        /* Líneas de la cuadrícula sutiles */
         .calendar-container .fc-theme-standard td, 
         .calendar-container .fc-theme-standard th, 
         .calendar-container .fc-scrollgrid {
           border-color: #334155;
         }
 
-        /* Botones superiores */
         .calendar-container .fc-button-primary {
           background-color: #1e293b !important;
           border-color: #334155 !important;
@@ -118,17 +121,16 @@ export default function CalendarWidget({ events, onEventClick, onDateClick }: an
           background-color: #334155 !important;
         }
         .calendar-container .fc-button-primary:not(:disabled).fc-button-active {
-          background-color: #0891b2 !important; /* Cyan para el botón activo */
+          background-color: #0891b2 !important; 
           color: white !important;
         }
 
-        /* Bloques de Eventos (Clases) */
         .calendar-container .fc-timegrid-event {
           border-radius: 6px;
-          border: none !important; /* Sin bordes, color sólido como en tu imagen */
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+          border: none !important; 
+          box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.2);
           margin: 1px 2px !important;
-          transition: transform 0.15s ease, filter 0.15s ease;
+          transition: transform 0.1s ease, filter 0.1s ease;
         }
         .calendar-container .fc-timegrid-event:hover {
           transform: scale(1.02);
@@ -137,7 +139,6 @@ export default function CalendarWidget({ events, onEventClick, onDateClick }: an
           cursor: pointer;
         }
 
-        /* Textos de los ejes (horas a la izquierda y días arriba) */
         .calendar-container .fc-col-header-cell-cushion, 
         .calendar-container .fc-timegrid-axis-cushion, 
         .calendar-container .fc-timegrid-slot-label-cushion {
@@ -146,7 +147,6 @@ export default function CalendarWidget({ events, onEventClick, onDateClick }: an
           font-size: 0.85rem;
         }
 
-        /* Línea de hora actual */
         .calendar-container .fc-timegrid-now-indicator-line {
           border-color: #06b6d4;
           border-width: 2px;
