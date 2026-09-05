@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import dynamic from 'next/dynamic';
+import PayrollPanel from './PayrollPanel'; // <-- NUESTRO NUEVO COMPONENTE
 
 // Reutilizamos el widget que ya tienes creado en la raíz del dashboard
 const CalendarWidget = dynamic(() => import('../../CalendarWidget'), { 
@@ -24,6 +25,9 @@ export default function TeacherProfilePage() {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // ✨ NUEVO ESTADO PARA LAS PESTAÑAS
+  const [activeTab, setActiveTab] = useState<'profile' | 'payroll'>('profile');
 
   useEffect(() => {
     const fetchTeacherData = async () => {
@@ -105,71 +109,107 @@ export default function TeacherProfilePage() {
           ←
         </Link>
         <div>
-          <h2 className="text-3xl font-extrabold text-white tracking-tight">Perfil del Instructor</h2>
+          <h2 className="text-3xl font-extrabold text-white tracking-tight">Panel del Instructor</h2>
         </div>
       </div>
 
-      {/* BLOQUE SUPERIOR: Estilo Kodland (Dividido en tarjetas) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* TARJETA 1: Información Personal */}
-        <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-xl flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+      {/* ✨ NUEVO: MENÚ DE PESTAÑAS */}
+      <div className="flex gap-2 border-b border-slate-800 pb-px mb-2">
+        <button 
+          onClick={() => setActiveTab('profile')}
+          className={`px-6 py-3 font-bold text-sm uppercase tracking-wider transition-colors border-b-2 ${
+            activeTab === 'profile' 
+              ? 'border-cyan-500 text-cyan-400' 
+              : 'border-transparent text-slate-500 hover:text-slate-300'
+          }`}
+        >
+          Perfil y Clases
+        </button>
+        <button 
+          onClick={() => setActiveTab('payroll')}
+          className={`px-6 py-3 font-bold text-sm uppercase tracking-wider transition-colors border-b-2 ${
+            activeTab === 'payroll' 
+              ? 'border-cyan-500 text-cyan-400' 
+              : 'border-transparent text-slate-500 hover:text-slate-300'
+          }`}
+        >
+          Nóminas y Pagos
+        </button>
+      </div>
+
+      {/* --- CONTENIDO DINÁMICO SEGÚN LA PESTAÑA --- */}
+      
+      {/* PESTAÑA 1: PERFIL (Tu código original) */}
+      {activeTab === 'profile' && (
+        <div className="flex flex-col gap-6 animate-in fade-in duration-300">
           
-          <div>
-            <div className="flex justify-between items-start mb-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-cyan-400 to-blue-500 text-white rounded-2xl flex items-center justify-center font-bold text-3xl shadow-lg">
-                {teacher.name.charAt(0).toUpperCase()}
+          {/* BLOQUE SUPERIOR: Estilo Kodland (Dividido en tarjetas) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* TARJETA 1: Información Personal */}
+            <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-xl flex flex-col justify-between relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+              
+              <div>
+                <div className="flex justify-between items-start mb-6">
+                  <div className="w-16 h-16 bg-gradient-to-br from-cyan-400 to-blue-500 text-white rounded-2xl flex items-center justify-center font-bold text-3xl shadow-lg">
+                    {teacher.name.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 text-xs font-bold rounded-full uppercase tracking-widest">
+                    Activo
+                  </span>
+                </div>
+                
+                <h3 className="text-2xl font-bold mb-1">{teacher.name}</h3>
+                <p className="text-cyan-400 font-medium text-sm mb-6">Instructor de Natación</p>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 text-sm text-slate-300">
+                    <span className="w-6 text-center opacity-50">✉️</span>
+                    {teacher.email}
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-slate-300">
+                    <span className="w-6 text-center opacity-50">📞</span>
+                    {teacher.phone || 'Sin teléfono registrado'}
+                  </div>
+                </div>
               </div>
-              <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 text-xs font-bold rounded-full uppercase tracking-widest">
-                Activo
-              </span>
+            </div>
+
+            {/* TARJETA 2: Cursos y Capacidades */}
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-sm lg:col-span-2">
+              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Niveles Habilitados</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 h-48 overflow-y-auto pr-2">
+                {services.map(svc => (
+                  <div key={svc.id} className="bg-slate-800 border border-slate-700 p-3 rounded-xl flex flex-col gap-1 hover:border-cyan-500/50 hover:bg-slate-800/80 transition-colors">
+                    <span className="font-bold text-slate-200 text-sm">[{svc.id}] {svc.name}</span>
+                    <span className="text-xs text-slate-500">[{svc.durationMinutes} min] [Aforo: {svc.maxCapacity || 'N/A'}]</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* BLOQUE INFERIOR: Calendario Exclusivo */}
+          <div className="bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-800 mt-2">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-slate-200">Horario de Clases Asignadas</h3>
+              <div className="flex gap-4 text-xs font-bold text-slate-500">
+                <span className="flex items-center gap-1"><div className="w-3 h-3 bg-[#0891B2] rounded-full"></div> Pendiente</span>
+                <span className="flex items-center gap-1"><div className="w-3 h-3 bg-[#10B981] rounded-full"></div> Completada</span>
+                <span className="flex items-center gap-1"><div className="w-3 h-3 bg-[#EF4444] rounded-full"></div> Cancelada</span>
+              </div>
             </div>
             
-            <h3 className="text-2xl font-bold mb-1">{teacher.name}</h3>
-            <p className="text-cyan-400 font-medium text-sm mb-6">Instructor de Natación</p>
-            
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 text-sm text-slate-300">
-                <span className="w-6 text-center opacity-50">✉️</span>
-                {teacher.email}
-              </div>
-              <div className="flex items-center gap-3 text-sm text-slate-300">
-                <span className="w-6 text-center opacity-50">📞</span>
-                {teacher.phone || 'Sin teléfono registrado'}
-              </div>
-            </div>
+            <CalendarWidget events={calendarEvents} onEventClick={(info: any) => console.log('Clic en cita:', info.event.id)} />
           </div>
-        </div>
 
-        {/* TARJETA 2: Cursos y Capacidades */}
-        <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-sm lg:col-span-2">
-          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Niveles Habilitados</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 h-48 overflow-y-auto pr-2">
-            {services.map(svc => (
-              <div key={svc.id} className="bg-slate-800 border border-slate-100 p-3 rounded-xl flex flex-col gap-1 hover:border-cyan-200 hover:bg-cyan-50 transition-colors">
-                <span className="font-bold text-slate-200 text-sm">[{svc.id}] {svc.name}</span>
-                <span className="text-xs text-slate-500">[{svc.durationMinutes} min] [Aforo: {svc.maxCapacity || 'N/A'}]</span>
-              </div>
-            ))}
-          </div>
         </div>
-      </div>
+      )}
 
-      {/* BLOQUE INFERIOR: Calendario Exclusivo */}
-      <div className="bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-800 mt-2">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-lg font-bold text-slate-200">Horario de Clases Asignadas</h3>
-          <div className="flex gap-4 text-xs font-bold text-slate-500">
-            <span className="flex items-center gap-1"><div className="w-3 h-3 bg-[#0891B2] rounded-full"></div> Pendiente</span>
-            <span className="flex items-center gap-1"><div className="w-3 h-3 bg-[#10B981] rounded-full"></div> Completada</span>
-            <span className="flex items-center gap-1"><div className="w-3 h-3 bg-[#EF4444] rounded-full"></div> Cancelada</span>
-          </div>
-        </div>
-        
-        {/* Usamos el widget de calendario, pero solo con los eventos de ESTE profesor */}
-        <CalendarWidget events={calendarEvents} onEventClick={(info: any) => console.log('Clic en cita:', info.event.id)} />
-      </div>
+      {/* ✨ PESTAÑA 2: NÓMINA */}
+      {activeTab === 'payroll' && (
+        <PayrollPanel teacherId={params.id as string} />
+      )}
 
     </div>
   );

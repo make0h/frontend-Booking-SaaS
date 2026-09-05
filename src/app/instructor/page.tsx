@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import api from '@/lib/api';
+import PayrollPanel from './PayrollPanel'; // <-- IMPORTAMOS EL PANEL
 
 // Cargamos el nuevo calendario hermoso que acabamos de crear
 const CalendarWidget = dynamic(() => import('../dashboard/CalendarWidget'), { 
@@ -22,6 +23,12 @@ export default function InstructorPortalPage() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
+  // ✨ NUEVO: Guardamos el ID del usuario para pasárselo a la nómina
+  const [myUserId, setMyUserId] = useState<string>('');
+  
+  // ✨ NUEVO: Estado para las pestañas
+  const [activeTab, setActiveTab] = useState<'schedule' | 'payroll'>('schedule');
+
   // Estado para el modal de detalles
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
@@ -30,7 +37,8 @@ export default function InstructorPortalPage() {
 
   const fetchMyData = async () => {
     try {
-      const myUserId = localStorage.getItem('userId'); 
+      const storedUserId = localStorage.getItem('userId'); 
+      if (storedUserId) setMyUserId(storedUserId); // Lo guardamos en el estado
 
       const [aptRes, servRes, custRes] = await Promise.all([
         api.get('/appointments'),
@@ -39,7 +47,7 @@ export default function InstructorPortalPage() {
       ]);
 
       // FILTRO: Solo mis clases
-      const myAppointments = aptRes.data.filter((a: any) => a.employeeId?.toString() === myUserId);
+      const myAppointments = aptRes.data.filter((a: any) => a.employeeId?.toString() === storedUserId);
       
       setAppointments(myAppointments);
       setServices(servRes.data);
@@ -154,36 +162,70 @@ export default function InstructorPortalPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto mt-6 px-4 md:px-6 flex flex-col lg:flex-row gap-6">
-        
-        {/* COLUMNA PRINCIPAL: Calendario */}
-        <div className="w-full lg:w-3/4 flex flex-col">
-          <div className="mb-4">
-            <h2 className="text-2xl font-extrabold text-white tracking-tight">Mi Horario</h2>
-            <p className="text-sm text-slate-400 mt-1">Selecciona una clase para ver la información del alumno.</p>
-          </div>
-          <CalendarWidget events={calendarEvents} onEventClick={handleEventClick} />
+      {/* ✨ NUEVO: PESTAÑAS DE NAVEGACIÓN */}
+      <div className="max-w-7xl mx-auto px-4 md:px-6 pt-6">
+        <div className="flex gap-2 border-b border-slate-800 pb-px">
+          <button 
+            onClick={() => setActiveTab('schedule')}
+            className={`px-6 py-3 font-bold text-sm uppercase tracking-wider transition-colors border-b-2 ${
+              activeTab === 'schedule' 
+                ? 'border-cyan-500 text-cyan-400' 
+                : 'border-transparent text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            Mi Horario
+          </button>
+          <button 
+            onClick={() => setActiveTab('payroll')}
+            className={`px-6 py-3 font-bold text-sm uppercase tracking-wider transition-colors border-b-2 ${
+              activeTab === 'payroll' 
+                ? 'border-cyan-500 text-cyan-400' 
+                : 'border-transparent text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            Mis Pagos
+          </button>
         </div>
+      </div>
 
-        {/* COLUMNA LATERAL: Resumen */}
-        <div className="w-full lg:w-1/4 flex flex-col gap-4">
-          <div className="bg-gradient-to-br from-cyan-900/50 to-blue-900/50 p-5 md:p-6 rounded-2xl shadow-xl border border-cyan-800/30">
-            <h3 className="text-xs md:text-sm font-bold text-cyan-400 uppercase tracking-wider mb-2">Clases de Hoy</h3>
-            <div className="text-4xl md:text-5xl font-extrabold text-white mb-1">{classesToday.length}</div>
-            <p className="text-xs md:text-sm text-slate-300">Programadas para esta jornada</p>
+      {/* CONTENIDO DINÁMICO: HORARIO O NÓMINA */}
+      {activeTab === 'schedule' ? (
+        <main className="max-w-7xl mx-auto mt-6 px-4 md:px-6 flex flex-col lg:flex-row gap-6 animate-in fade-in duration-300">
+          
+          {/* COLUMNA PRINCIPAL: Calendario */}
+          <div className="w-full lg:w-3/4 flex flex-col">
+            <div className="mb-4">
+              <h2 className="text-2xl font-extrabold text-white tracking-tight">Mi Horario</h2>
+              <p className="text-sm text-slate-400 mt-1">Selecciona una clase para ver la información del alumno.</p>
+            </div>
+            <CalendarWidget events={calendarEvents} onEventClick={handleEventClick} />
           </div>
 
-          <div className="bg-slate-900 p-5 rounded-2xl shadow-xl border border-slate-800 hidden md:block">
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Estado de Clases</h3>
-            <div className="space-y-3 text-sm font-medium">
-              <div className="flex items-center gap-3"><span className="w-3 h-3 rounded-full bg-[#0891B2]"></span> Por impartir</div>
-              <div className="flex items-center gap-3"><span className="w-3 h-3 rounded-full bg-[#10B981]"></span> Completada</div>
-              <div className="flex items-center gap-3"><span className="w-3 h-3 rounded-full bg-[#EF4444]"></span> Cancelada</div>
+          {/* COLUMNA LATERAL: Resumen */}
+          <div className="w-full lg:w-1/4 flex flex-col gap-4">
+            <div className="bg-gradient-to-br from-cyan-900/50 to-blue-900/50 p-5 md:p-6 rounded-2xl shadow-xl border border-cyan-800/30">
+              <h3 className="text-xs md:text-sm font-bold text-cyan-400 uppercase tracking-wider mb-2">Clases de Hoy</h3>
+              <div className="text-4xl md:text-5xl font-extrabold text-white mb-1">{classesToday.length}</div>
+              <p className="text-xs md:text-sm text-slate-300">Programadas para esta jornada</p>
+            </div>
+
+            <div className="bg-slate-900 p-5 rounded-2xl shadow-xl border border-slate-800 hidden md:block">
+              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Estado de Clases</h3>
+              <div className="space-y-3 text-sm font-medium">
+                <div className="flex items-center gap-3"><span className="w-3 h-3 rounded-full bg-[#0891B2]"></span> Por impartir</div>
+                <div className="flex items-center gap-3"><span className="w-3 h-3 rounded-full bg-[#10B981]"></span> Completada</div>
+                <div className="flex items-center gap-3"><span className="w-3 h-3 rounded-full bg-[#EF4444]"></span> Cancelada</div>
+              </div>
             </div>
           </div>
-        </div>
 
-      </main>
+        </main>
+      ) : (
+        <main className="max-w-7xl mx-auto mt-6 px-4 md:px-6 animate-in fade-in duration-300">
+          {/* ✨ AQUÍ CARGAMOS LA NÓMINA DEL INSTRUCTOR */}
+          <PayrollPanel teacherId={myUserId} />
+        </main>
+      )}
 
       {/* MODAL DE DETALLES DE CLASE (SOLO LECTURA) */}
       {showModal && selectedAppointment && (
