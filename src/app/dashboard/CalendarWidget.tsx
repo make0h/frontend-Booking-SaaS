@@ -4,6 +4,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
+import listPlugin from '@fullcalendar/list'; // NUEVO: Importamos la vista de lista
 import { useEffect, useState } from 'react';
 
 export default function CalendarWidget({ events, onEventClick, onDateClick }: any) {
@@ -19,34 +20,42 @@ export default function CalendarWidget({ events, onEventClick, onDateClick }: an
   }, []);
 
   const renderEventContent = (eventInfo: any) => {
+    // Si estamos en vista de lista (móvil), FullCalendar ya maneja la hora a la izquierda, 
+    // así que solo renderizamos la info limpia sin el bloque de color.
+    if (eventInfo.view.type === 'listWeek' || eventInfo.view.type === 'listDay') {
+      const customer = eventInfo.event.extendedProps?.customerName || '';
+      const teacher = eventInfo.event.extendedProps?.teacherName || '';
+      return (
+        <div className="flex flex-col text-white cursor-pointer py-1">
+          <div className="font-bold text-sm text-cyan-400">{eventInfo.event.title}</div>
+          <div className="text-xs text-slate-400 mt-0.5">
+            👤 Alumno: {customer} | 🛟 Profe: {teacher}
+          </div>
+        </div>
+      );
+    }
+
+    // Renderizado normal para la vista de PC (Cuadrícula)
     const start = eventInfo.event.start;
     const end = eventInfo.event.end;
-    
-    // Formato amigable de 12 horas para el texto interno
     const startTime = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
-    const endTime = end ? end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
     
     const customer = eventInfo.event.extendedProps?.customerName || '';
-    const service = eventInfo.event.extendedProps?.serviceName || '';
     const teacher = eventInfo.event.extendedProps?.teacherName || '';
 
-    // Tooltip nativo que aparece al hacer hover
-    const tooltipText = `Horario: ${startTime} - ${endTime}\nClase: ${eventInfo.event.title}\nAlumno: ${customer}\nInstructor: ${teacher}`;
+    const tooltipText = `Horario: ${startTime}\nClase: ${eventInfo.event.title}\nAlumno: ${customer}\nInstructor: ${teacher}`;
 
     return (
-      <div 
-        title={tooltipText} 
-        className="flex flex-col p-1 w-full h-full text-left overflow-hidden text-white"
-      >
+      <div title={tooltipText} className="flex flex-col p-1 w-full h-full text-left overflow-hidden text-white">
         <div className="text-[10px] md:text-[11px] font-bold leading-none mb-0.5 opacity-90">
           {startTime}
         </div>
         <div className="text-[11px] md:text-sm font-extrabold leading-tight truncate">
           {eventInfo.event.title}
         </div>
-        {(customer || service) && (
+        {customer && (
           <div className="text-[10px] md:text-xs font-medium leading-tight truncate mt-0.5 opacity-80">
-            {customer && <span>👤 {customer}</span>}
+            <span>👤 {customer}</span>
           </div>
         )}
       </div>
@@ -56,32 +65,33 @@ export default function CalendarWidget({ events, onEventClick, onDateClick }: an
   return (
     <div className="w-full bg-slate-900 rounded-xl overflow-hidden calendar-container">
       <FullCalendar
-        plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
-        initialView={isMobile ? 'timeGridDay' : 'timeGridWeek'}
+        plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin, listPlugin]} // Añadido listPlugin
+        initialView={isMobile ? 'listWeek' : 'timeGridWeek'} // En móvil arranca como lista
         allDaySlot={false}
         slotMinTime="06:00:00"
         slotMaxTime="22:00:00"
         slotDuration="00:30:00"
         expandRows={true}
-        height="700px" 
+        height={isMobile ? "auto" : "700px"} // En móvil deja que la lista fluya
         events={events}
         eventClick={onEventClick}
         dateClick={onDateClick}
         eventContent={renderEventContent}
         nowIndicator={true}
-        // NUEVO: Formato de días claros (ej. "lunes 14")
         dayHeaderFormat={{ weekday: 'long', day: 'numeric' }}
-        // NUEVO: Formato de horas claro en el eje izquierdo (ej. "6:00 pm")
         slotLabelFormat={{ hour: 'numeric', minute: '2-digit', meridiem: 'short' }}
         headerToolbar={{
           left: 'prev,next today',
           center: 'title',
-          right: isMobile ? 'timeGridDay,timeGridWeek' : 'timeGridWeek,timeGridDay'
+          // Controles dinámicos según dispositivo
+          right: isMobile ? 'listWeek,listDay' : 'timeGridWeek,timeGridDay'
         }}
         buttonText={{
           today: 'Hoy',
           week: 'Semana',
-          day: 'Día'
+          day: 'Día',
+          listWeek: 'Agenda', // Texto para el botón de lista
+          listDay: 'Día'
         }}
         locale="es" 
       />
@@ -139,22 +149,35 @@ export default function CalendarWidget({ events, onEventClick, onDateClick }: an
           cursor: pointer;
         }
 
-        .calendar-container .fc-col-header-cell-cushion, 
-        .calendar-container .fc-timegrid-axis-cushion, 
-        .calendar-container .fc-timegrid-slot-label-cushion {
+        /* --- NUEVOS ESTILOS PARA LA VISTA DE LISTA (MÓVIL) --- */
+        .calendar-container .fc-list {
+          border-color: #334155 !important;
+        }
+        .calendar-container .fc-list-day-cushion {
+          background-color: #1e293b !important;
+          color: #cbd5e1 !important;
+          padding: 12px 16px !important;
+          font-weight: 800 !important;
+          text-transform: uppercase;
+        }
+        .calendar-container .fc-list-event:hover td {
+          background-color: #334155 !important;
+        }
+        .calendar-container .fc-list-event-time {
           color: #94a3b8;
           font-weight: 600;
-          font-size: 0.85rem;
+          padding-left: 16px !important;
         }
-
-        .calendar-container .fc-timegrid-now-indicator-line {
-          border-color: #06b6d4;
-          border-width: 2px;
+        .calendar-container .fc-list-event-graphic {
+          padding: 0 8px !important;
         }
-        .calendar-container .fc-timegrid-now-indicator-arrow {
-          border-color: #06b6d4;
-          border-top-color: transparent;
-          border-bottom-color: transparent;
+        .calendar-container .fc-list-event-title {
+          padding-right: 16px !important;
+        }
+        .calendar-container .fc-list-empty {
+          background-color: #0f172a !important;
+          color: #64748b !important;
+          padding: 3rem !important;
         }
       `}</style>
     </div>
