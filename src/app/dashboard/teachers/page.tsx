@@ -57,7 +57,7 @@ export default function TeachersPage() {
     setEditingId(teacher.id);
     setName(teacher.name);
     setEmail(teacher.email || '');
-    setPhone(teacher.phone || '');
+    setPhone(teacher.phone || teacher.phoneNumber || teacher.Phone || '');
     
     setModalMode('edit');
     setFormError('');
@@ -160,6 +160,7 @@ export default function TeachersPage() {
                     <h3 className="text-lg font-bold text-white leading-tight">{teacher.name}</h3>
                     <p className="text-sm text-cyan-400 font-medium mb-1">Instructor</p>
                     <p className="text-xs text-slate-400">✉️ {teacher.email}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">📞 {teacher.phone || teacher.phoneNumber || teacher.Phone || 'Sin teléfono'}</p>
                   </div>
                 </div>
 

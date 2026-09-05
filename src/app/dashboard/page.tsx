@@ -199,6 +199,35 @@ export default function DashboardPage() {
     }
   };
 
+  const handleDeleteAppointment = async () => {
+    if (window.confirm('🚨 ¿Seguro que deseas ELIMINAR esta clase del sistema? La clase desaparecerá y se le devolverá 1 crédito al alumno.')) {
+      const loadingToast = toast.loading('Borrando clase y devolviendo crédito...');
+      try {
+        await api.delete(`/appointments/${selectedAppointment.id}`);
+        toast.success('Clase eliminada con éxito', { id: loadingToast, duration: 5000 });
+        setShowEditModal(false);
+        fetchData(); // Recargamos para ver cómo desaparece
+      } catch (error: any) {
+        toast.error(getErrorMessage(error), { id: loadingToast, duration: 5000 });
+      }
+    }
+  };
+
+  const handleCompleteAppointment = async () => {
+    if (window.confirm('¿Confirmas que esta clase ya fue impartida? Se descontará el crédito al alumno y pasará a nómina.')) {
+      const loadingToast = toast.loading('Procesando clase...');
+      try {
+        // Llamamos al endpoint mágico que hicimos en el backend
+        const response = await api.put(`/appointments/${selectedAppointment.id}/complete`);
+        toast.success('Clase completada exitosamente', { id: loadingToast, duration: 5000 });
+        setShowEditModal(false);
+        fetchData(); // Recargamos para ver el cuadro verde
+      } catch (error: any) {
+        toast.error(getErrorMessage(error), { id: loadingToast, duration: 5000 });
+      }
+    }
+  };
+
   const handleEventClick = (info: any) => {
     const apt = info.event.extendedProps;
     setSelectedAppointment(apt);
@@ -428,9 +457,17 @@ export default function DashboardPage() {
              
              <form onSubmit={handleUpdateAppointment} className="p-6 space-y-4">
                 
+                {/* AVISO SI ESTÁ CANCELADA */}
                 {(selectedAppointment.status === 2 || selectedAppointment.status === 'Cancelled') && (
                   <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/20 mb-4 text-center">
                     <p className="text-sm font-semibold text-red-400">Esta clase se encuentra cancelada.</p>
+                  </div>
+                )}
+
+                {/* AVISO SI ESTÁ COMPLETADA */}
+                {(selectedAppointment.status === 1 || selectedAppointment.status === 'Completed') && (
+                  <div className="bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20 mb-4 text-center">
+                    <p className="text-sm font-semibold text-emerald-400">Esta clase ya fue impartida.</p>
                   </div>
                 )}
 
@@ -439,7 +476,8 @@ export default function DashboardPage() {
                   <select 
                     value={editTeacher} 
                     onChange={(e) => setEditTeacher(e.target.value)} 
-                    disabled={selectedAppointment.status === 2 || selectedAppointment.status === 'Cancelled'}
+                    // Solo dejamos editar si la clase está pendiente
+                    disabled={selectedAppointment.status !== 0 && selectedAppointment.status !== 'Pending'}
                     className="w-full border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white disabled:opacity-50 outline-none"
                   >
                     {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -452,29 +490,47 @@ export default function DashboardPage() {
                     type="datetime-local" 
                     value={editDate} 
                     onChange={(e) => setEditDate(e.target.value)} 
-                    disabled={selectedAppointment.status === 2 || selectedAppointment.status === 'Cancelled'}
+                    disabled={selectedAppointment.status !== 0 && selectedAppointment.status !== 'Pending'}
                     className="w-full border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white disabled:opacity-50 outline-none" 
                   />
                 </div>
 
+                {/* --- ZONA DE BOTONES --- */}
                 <div className="pt-6 flex flex-col gap-3">
-                  {(selectedAppointment.status !== 2 && selectedAppointment.status !== 'Cancelled') && (
-                    <button type="submit" className="w-full px-4 py-3 bg-cyan-600 text-white font-semibold rounded-xl hover:bg-cyan-500 shadow-md transition-colors">
-                      Guardar Cambios
-                    </button>
-                  )}
                   
-                  {(selectedAppointment.status !== 2 && selectedAppointment.status !== 'Cancelled') ? (
-                    <button type="button" onClick={handleCancelAppointment} className="w-full px-4 py-3 bg-red-500/10 text-red-400 border border-red-500/20 font-semibold rounded-xl hover:bg-red-500/20 transition-colors">
-                      Cancelar Clase Definitivamente
-                    </button>
-                  ) : (
-                     <button type="button" onClick={() => setShowEditModal(false)} className="w-full px-4 py-3 border border-slate-700 text-slate-300 font-semibold rounded-xl hover:bg-slate-800">
-                      Cerrar
+                  {/* SI LA CLASE ESTÁ PENDIENTE (Muestra todas las opciones de acción) */}
+                  {(selectedAppointment.status === 0 || selectedAppointment.status === 'Pending') && (
+                    <>
+                      <button type="button" onClick={handleCompleteAppointment} className="w-full px-4 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-500 shadow-md shadow-emerald-900/20 transition-colors flex items-center justify-center gap-2">
+                        ✅ Marcar clase como Impartida
+                      </button>
+
+                      <button type="submit" className="w-full px-4 py-3 bg-cyan-600 text-white font-semibold rounded-xl hover:bg-cyan-500 shadow-md transition-colors">
+                        Reagendar / Guardar Cambios
+                      </button>
+
+                      <button type="button" onClick={handleCancelAppointment} className="w-full px-4 py-3 bg-red-500/10 text-red-400 border border-red-500/20 font-semibold rounded-xl hover:bg-red-500/20 transition-colors">
+                        🚫 Cancelar Clase Definitivamente
+                      </button>
+                    </>
+                  )}
+
+                  {/* SI LA CLASE YA PASÓ (Solo permite cerrar) */}
+                  {(selectedAppointment.status !== 0 && selectedAppointment.status !== 'Pending') && (
+                     <button type="button" onClick={() => setShowEditModal(false)} className="w-full px-4 py-3 border border-slate-700 text-slate-300 font-semibold rounded-xl hover:bg-slate-800 transition-colors">
+                      Cerrar ventana
                     </button>
                   )}
+
+                  {/* EL BOTÓN DE EMERGENCIA (Siempre visible al fondo) */}
+                  <div className="border-t border-slate-800 mt-2 pt-4">
+                    <button type="button" onClick={handleDeleteAppointment} className="w-full px-4 py-3 bg-red-900/30 text-red-500 border border-red-900/50 font-bold rounded-xl hover:bg-red-900/60 transition-colors flex items-center justify-center gap-2">
+                      🗑️ Eliminar Error (Devuelve Crédito)
+                    </button>
+                  </div>
+
                 </div>
-             </form>
+              </form>
 
            </div>
         </div>
