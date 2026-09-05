@@ -6,7 +6,7 @@ import { Toaster } from 'react-hot-toast';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'BookingSaaS',
+  title: 'BookingZ',
   description: 'Sistema de administración de clases y reservas',
 };
 

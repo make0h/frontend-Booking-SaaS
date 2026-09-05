@@ -30,7 +30,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             B
           </div>
           <div>
-            <h1 className="text-xl font-extrabold tracking-tight text-white">BookingSaaS</h1>
+            <h1 className="text-xl font-extrabold tracking-tight text-white">BookingZ</h1>
             <p className="text-xs text-cyan-400 font-medium">Centro Acuático</p>
           </div>
         </div>
@@ -71,7 +71,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <header className="md:hidden bg-slate-900 border-b border-slate-800 text-white p-4 flex justify-between items-center shadow-md z-10">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center font-bold text-sm text-white">B</div>
-            <span className="font-extrabold text-lg text-white">BookingSaaS</span>
+            <span className="font-extrabold text-lg text-white">BookingZ</span>
           </div>
           <button onClick={handleLogout} className="text-xs bg-slate-800 border border-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg font-bold">Salir</button>
         </header>

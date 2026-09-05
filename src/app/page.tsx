@@ -68,7 +68,7 @@ export default function LoginPage() {
             B
           </div>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-white tracking-tight">BookingSaaS</h2>
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-white tracking-tight">BookingZ</h2>
         <p className="mt-2 text-center text-sm text-slate-400">Inicia sesión para administrar tu centro acuático</p>
       </div>
 

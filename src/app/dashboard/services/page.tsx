@@ -2,24 +2,29 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
+import toast from 'react-hot-toast';
 
 export default function ServicesPage() {
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
   
+  // Estados del Modal
+  const [showModal, setShowModal] = useState(false);
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  const [editingId, setEditingId] = useState<number | null>(null);
+  
+  // Campos del formulario
   const [name, setName] = useState('');
-  const [price, setPrice] = useState('');
-  const [duration, setDuration] = useState('45'); 
-  const [maxCapacity, setMaxCapacity] = useState('5');
-  const [formError, setFormError] = useState('');
+  const [duration, setDuration] = useState(45);
+  const [price, setPrice] = useState(0);
+  const [maxCapacity, setMaxCapacity] = useState(1);
 
   const fetchServices = async () => {
     try {
       const response = await api.get('/services');
       setServices(response.data);
     } catch (error) {
-      console.error("Error al cargar servicios", error);
+      toast.error('Error al cargar los servicios');
     } finally {
       setLoading(false);
     }
@@ -29,43 +34,73 @@ export default function ServicesPage() {
     fetchServices();
   }, []);
 
-  const handleCreateService = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError('');
-
-    try {
-      await api.post('/services', {
-        name: name,
-        price: parseFloat(price),
-        durationMinutes: parseInt(duration),
-        maxCapacity: parseInt(maxCapacity),
-        businessId: 1 
-      });
-      
-      setShowModal(false);
-      resetForm();
-      fetchServices(); 
-    } catch (error: any) {
-      setFormError(error.response?.data || 'Error al crear el servicio');
-    }
-  };
-
-  const handleDelete = async (id: number, name: string) => {
-    if (confirm(`¿Estás seguro de eliminar el nivel "${name}"? Esto podría afectar a clases ya programadas.`)) {
-      try {
-        await api.delete(`/services/${id}`);
-        fetchServices();
-      } catch (error: any) {
-        alert('No se pudo eliminar. Es posible que tenga clases activas asociadas.');
-      }
-    }
-  };
-
   const resetForm = () => {
     setName('');
-    setPrice('');
-    setDuration('45');
-    setMaxCapacity('5');
+    setDuration(45);
+    setPrice(0);
+    setMaxCapacity(1);
+    setEditingId(null);
+  };
+
+  const openCreateModal = () => {
+    resetForm();
+    setModalMode('create');
+    setShowModal(true);
+  };
+
+  const openEditModal = (service: any) => {
+    setEditingId(service.id);
+    setName(service.name);
+    setDuration(service.durationMinutes);
+    setPrice(service.price || 0);
+    setMaxCapacity(service.maxCapacity || 1);
+    
+    setModalMode('edit');
+    setShowModal(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Armamos el paquete de datos que C# está esperando
+    const payload = { 
+      name, 
+      durationMinutes: duration, 
+      price, 
+      maxCapacity,
+      businessId: 1 // Por defecto, asignado a tu negocio principal
+    };
+    
+    const loadingToast = toast.loading(modalMode === 'create' ? 'Creando...' : 'Guardando cambios...');
+
+    try {
+      if (modalMode === 'create') {
+        await api.post('/services', payload);
+        toast.success('Clase/Servicio creado', { id: loadingToast });
+      } else {
+        await api.put(`/services/${editingId}`, payload);
+        toast.success('Servicio actualizado', { id: loadingToast });
+      }
+      setShowModal(false);
+      fetchServices();
+    } catch (error: any) {
+      const errorMsg = typeof error.response?.data === 'string' ? error.response.data : 'Ocurrió un error inesperado';
+      toast.error(errorMsg, { id: loadingToast });
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (window.confirm('¿Seguro que deseas eliminar esta clase?')) {
+      const loadingToast = toast.loading('Eliminando...');
+      try {
+        await api.delete(`/services/${id}`);
+        toast.success('Servicio eliminado', { id: loadingToast });
+        fetchServices();
+      } catch (error: any) {
+        const errorMsg = typeof error.response?.data === 'string' ? error.response.data : 'No se pudo eliminar';
+        toast.error(errorMsg, { id: loadingToast, duration: 5000 });
+      }
+    }
   };
 
   if (loading) {
@@ -77,131 +112,138 @@ export default function ServicesPage() {
   }
 
   return (
-    <>
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+    <div className="flex flex-col gap-8">
+      {/* CABECERA */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h2 className="text-3xl font-extrabold text-white tracking-tight">Catálogo de Clases</h2>
-          <p className="text-slate-400 mt-1">Define los niveles de natación, duraciones y cupos máximos de la piscina.</p>
+          <p className="text-slate-400 mt-1">Configura los servicios, duraciones, precios y aforo máximo permitidos.</p>
         </div>
         <button 
-          onClick={() => { setFormError(''); setShowModal(true); }}
-          className="bg-cyan-600 text-white font-bold px-6 py-3 rounded-xl shadow-md shadow-cyan-900/50 hover:bg-cyan-500 transition-all active:scale-95 flex items-center gap-2"
+          onClick={openCreateModal}
+          className="w-full md:w-auto bg-cyan-600 text-white font-bold px-6 py-3 rounded-xl shadow-lg hover:bg-cyan-500 transition active:scale-95 flex gap-2 items-center justify-center"
         >
-          <span className="text-xl">+</span> Nuevo Nivel
+          <span className="text-xl">+</span> Nueva Clase
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {services.length === 0 ? (
-          <div className="col-span-full bg-slate-900 p-12 rounded-2xl border border-dashed border-slate-700 text-center">
-            <div className="text-4xl mb-3">🏊‍♂️</div>
-            <h3 className="text-lg font-bold text-white">No hay clases configuradas</h3>
-            <p className="text-slate-400 font-medium mt-1">Crea tu primer nivel de estimulación o natación para empezar.</p>
-          </div>
-        ) : (
-          services.map((svc: any) => (
-            <div key={svc.id} className="bg-slate-900 rounded-2xl p-6 border border-slate-800 shadow-xl hover:border-cyan-500/50 transition-all group">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-slate-800 text-cyan-400 border border-slate-700 rounded-xl flex items-center justify-center text-xl">
-                    🌊
-                  </div>
-                  <h3 className="text-lg font-bold text-white leading-tight">{svc.name}</h3>
-                </div>
-                <button 
-                  onClick={() => handleDelete(svc.id, svc.name)}
-                  className="text-slate-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                  title="Eliminar clase"
-                >
-                  ✖
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4 mt-6">
-                <div className="bg-slate-800 p-3 rounded-xl border border-slate-700">
-                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Costo / Clase</p>
-                  <p className="text-lg font-extrabold text-white">${svc.price.toLocaleString()}</p>
-                </div>
-                <div className="bg-slate-800 p-3 rounded-xl border border-slate-700">
-                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Duración</p>
-                  <p className="text-lg font-extrabold text-white">{svc.durationMinutes} min</p>
-                </div>
-              </div>
+      {/* GRILLA DE TARJETAS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {services.map((service) => (
+          <div key={service.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden group flex flex-col justify-between">
+            
+            {/* Opciones ocultas que aparecen al pasar el mouse (o siempre en móvil) */}
+            <div className="absolute top-4 right-4 flex gap-2 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => openEditModal(service)} className="bg-slate-800 hover:bg-cyan-900/50 text-cyan-400 p-2 rounded-lg border border-slate-700 transition" title="Editar">
+                ✏️
+              </button>
+              <button onClick={() => handleDelete(service.id)} className="bg-slate-800 hover:bg-red-900/50 text-red-400 p-2 rounded-lg border border-slate-700 transition" title="Eliminar">
+                🗑️
+              </button>
+            </div>
 
-              <div className="mt-4 pt-4 border-t border-slate-800 flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-400">Capacidad Máxima:</span>
-                <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-sm font-bold px-3 py-1 rounded-full">
-                  {svc.maxCapacity || 'Sin límite'} alumnos
-                </span>
+            <h3 className="text-xl font-bold text-white mb-5 pr-16">{service.name}</h3>
+            
+            <div className="space-y-3">
+              <div className="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800/50">
+                <span className="text-slate-400 text-sm font-medium">⏱️ Duración</span>
+                <span className="text-white font-bold">{service.durationMinutes} min</span>
+              </div>
+              <div className="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800/50">
+                <span className="text-slate-400 text-sm font-medium">👥 Aforo Máximo</span>
+                <span className="text-cyan-400 font-bold">{service.maxCapacity} niños</span>
+              </div>
+              <div className="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800/50">
+                <span className="text-slate-400 text-sm font-medium">💰 Precio Ref.</span>
+                <span className="text-emerald-400 font-bold">${service.price.toLocaleString()}</span>
               </div>
             </div>
-          ))
+          </div>
+        ))}
+        {services.length === 0 && (
+          <div className="col-span-full bg-slate-900 border border-slate-800 rounded-2xl p-10 text-center shadow-xl">
+            <p className="text-slate-400 mb-2">No tienes ninguna clase configurada todavía.</p>
+            <p className="text-sm text-slate-500">Haz clic en "Nueva Clase" para empezar.</p>
+          </div>
         )}
       </div>
 
+      {/* MODAL DE CREACIÓN / EDICIÓN */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-5 border-b border-slate-800 flex justify-between items-center bg-slate-900">
-              <h3 className="text-lg font-extrabold text-white">Crear Nivel de Natación</h3>
-              <button onClick={() => { setShowModal(false); resetForm(); }} className="text-slate-500 hover:text-slate-300 font-bold text-2xl">&times;</button>
+          <div className="bg-slate-900 rounded-2xl border border-slate-800 w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+              <h3 className="text-lg font-bold text-white">
+                {modalMode === 'create' ? 'Configurar Nueva Clase' : 'Editar Configuración'}
+              </h3>
+              <button onClick={() => setShowModal(false)} className="text-slate-500 hover:text-white font-bold text-xl">&times;</button>
             </div>
             
-            {formError && (
-              <div className="mx-6 mt-4 bg-red-500/10 border-l-4 border-red-500 p-3 rounded-md">
-                <p className="text-sm text-red-400 font-medium">{formError}</p>
-              </div>
-            )}
-            
-            <form onSubmit={handleCreateService} className="p-6 space-y-5">
+            <form onSubmit={handleSubmit} className="p-6 space-y-5">
               <div>
-                <label className="block text-sm font-bold text-slate-300 mb-1.5">Nombre del Nivel</label>
+                <label className="block text-sm font-semibold text-slate-300 mb-1">Nombre de la Clase</label>
                 <input 
-                  type="text" placeholder="Ej. Estimulación Temprana Nivel 1" value={name} onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-500 rounded-xl p-3 focus:ring-2 focus:ring-cyan-500 outline-none" required
+                  type="text" 
+                  value={name} 
+                  onChange={(e) => setName(e.target.value)} 
+                  placeholder="Ej. Estimulación Temprana"
+                  className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-3 outline-none focus:ring-2 focus:ring-cyan-500" 
+                  required 
                 />
               </div>
 
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className="block text-sm font-bold text-slate-300 mb-1.5">Costo Base ($)</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-1">Duración (Minutos)</label>
                   <input 
-                    type="number" placeholder="50000" value={price} onChange={(e) => setPrice(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-500 rounded-xl p-3 focus:ring-2 focus:ring-cyan-500 outline-none" required
+                    type="number" 
+                    min="15" 
+                    value={duration} 
+                    onChange={(e) => setDuration(Number(e.target.value))} 
+                    className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-3 outline-none focus:ring-2 focus:ring-cyan-500" 
+                    required 
                   />
                 </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-bold text-slate-300 mb-1.5">Duración (Min)</label>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-1">Aforo Máximo</label>
                   <input 
-                    type="number" value={duration} onChange={(e) => setDuration(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-500 rounded-xl p-3 focus:ring-2 focus:ring-cyan-500 outline-none" required
+                    type="number" 
+                    min="1" 
+                    value={maxCapacity} 
+                    onChange={(e) => setMaxCapacity(Number(e.target.value))} 
+                    className="w-full bg-slate-800 border border-slate-700 text-cyan-400 font-bold rounded-xl p-3 outline-none focus:ring-2 focus:ring-cyan-500" 
+                    required 
                   />
                 </div>
               </div>
 
-              <div className="bg-cyan-900/20 border border-cyan-800/50 p-4 rounded-xl">
-                <label className="block text-sm font-bold text-cyan-400 mb-1.5 flex items-center gap-2">
-                  <span>🏊‍♂️</span> Capacidad de la Piscina
-                </label>
-                <p className="text-xs text-slate-400 mb-2">Define el límite máximo de alumnos simultáneos permitidos en esta clase.</p>
-                <input 
-                  type="number" value={maxCapacity} onChange={(e) => setMaxCapacity(e.target.value)} min="1"
-                  className="w-full bg-slate-800 border border-cyan-800 text-white rounded-xl p-3 focus:ring-2 focus:ring-cyan-500 outline-none" required
-                />
+              <div>
+                <label className="block text-sm font-semibold text-slate-300 mb-1">Precio Referencial</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                  <input 
+                    type="number" 
+                    min="0" 
+                    value={price} 
+                    onChange={(e) => setPrice(Number(e.target.value))} 
+                    className="w-full bg-slate-800 border border-slate-700 text-emerald-400 font-bold rounded-xl p-3 pl-8 outline-none focus:ring-2 focus:ring-cyan-500" 
+                    required 
+                  />
+                </div>
               </div>
 
-              <div className="pt-2 flex gap-3">
-                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} className="flex-1 px-4 py-3.5 border border-slate-700 text-slate-300 font-bold rounded-xl hover:bg-slate-800 transition-colors">
+              <div className="pt-4 flex gap-3">
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 border border-slate-700 text-slate-300 font-semibold rounded-xl hover:bg-slate-800 transition">
                   Cancelar
                 </button>
-                <button type="submit" className="flex-1 px-4 py-3.5 bg-cyan-600 text-white font-bold rounded-xl hover:bg-cyan-500 shadow-md transition-all">
-                  Guardar Nivel
+                <button type="submit" className="flex-1 py-3 bg-cyan-600 text-white font-semibold rounded-xl hover:bg-cyan-500 shadow-md transition">
+                  {modalMode === 'create' ? 'Crear Clase' : 'Guardar Cambios'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
