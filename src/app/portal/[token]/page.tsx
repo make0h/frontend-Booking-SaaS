@@ -104,34 +104,44 @@ export default function ParentPortalPage({ params }: { params: Promise<{ token: 
     
     const loadingToast = toast.loading('Confirmando asistencia...');
     try {
+      // 1. Confirmamos la clase en el backend
       await api.put(`/portal/${token}/appointments/${selectedAppointment.id}/confirm`);
       setShowModal(false);
       
+      // 2. Recargamos los datos silenciosamente
       const response = await api.get(`/portal/${token}`);
       const updatedCustomer = response.data.customer;
       
       setCustomer(updatedCustomer);
       setAppointments(response.data.appointments);
 
-      // ✨ NOTIFICACIÓN INTELIGENTE DE CRÉDITOS RESTANTES
+      // ✨ 3. LIMPIEZA TOTAL: Borramos el toast de carga antes de mostrar el resultado
+      toast.dismiss(loadingToast);
+
+      // 4. Mostramos una sola notificación clara según los créditos restantes
       const creditosRestantes = updatedCustomer.credits;
       
       if (creditosRestantes > 1) {
         toast.success(`¡Asistencia confirmada! Tienes ${creditosRestantes} clases disponibles.`, { 
-          id: loadingToast, duration: 5000 
+          duration: 4000 
         });
       } else if (creditosRestantes === 1) {
-        toast.success(`¡Asistencia confirmada! ⚠️ ATENCIÓN: Solo te queda 1 clase.`, { 
-          id: loadingToast, duration: 6000, icon: '⚠️' 
+        toast('¡Asistencia confirmada! ⚠️ ATENCIÓN: Solo te queda 1 clase.', { 
+          duration: 5000, 
+          icon: '⚠️',
+          style: { background: '#1E293B', color: '#F59E0B', border: '1px solid #F59E0B' }
         });
       } else {
-        toast.success(`¡Asistencia confirmada! ❌ Has agotado tus clases. Recuerda recargar.`, { 
-          id: loadingToast, duration: 7000, icon: '🛑' 
+        toast('¡Asistencia confirmada! ❌ Has agotado tus clases. Recuerda recargar.', { 
+          duration: 6000, 
+          icon: '🛑',
+          style: { background: '#1E293B', color: '#EF4444', border: '1px solid #EF4444' }
         });
       }
 
     } catch (err: any) {
-      toast.error(err.response?.data || 'Error al confirmar la clase', { id: loadingToast });
+      toast.dismiss(loadingToast);
+      toast.error(err.response?.data || 'Error al confirmar la clase');
     }
   };
 
