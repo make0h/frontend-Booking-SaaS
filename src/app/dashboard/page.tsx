@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import dynamic from 'next/dynamic';
-import toast from 'react-hot-toast'; // Importamos la magia
+import toast from 'react-hot-toast'; 
 
 const CalendarWidget = dynamic(() => import('./CalendarWidget'), { 
   ssr: false,
@@ -27,28 +27,27 @@ export default function DashboardPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   
-  // Estados para el Modal de Crear (Paquete / Individual)
   const [selectedTeacher, setSelectedTeacher] = useState('');
   const [selectedService, setSelectedService] = useState('');
   const [formError, setFormError] = useState('');
 
-  // Buscador de Alumnos
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Carrito de Fechas
+  // ✨ NUEVO: Estados separados para fecha y hora (Carrito)
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
-  const [tempDate, setTempDate] = useState('');
+  const [tempDateOnly, setTempDateOnly] = useState('');
+  const [tempTimeOnly, setTempTimeOnly] = useState('');
 
-  // Estados para Editar
-  const [editDate, setEditDate] = useState('');
+  // ✨ NUEVO: Estados separados para fecha y hora (Reagendar)
+  const [editDateOnly, setEditDateOnly] = useState('');
+  const [editTimeOnly, setEditTimeOnly] = useState('');
   const [editTeacher, setEditTeacher] = useState('');
   
   const router = useRouter();
 
-  // FILTRO INTELIGENTE DE ERRORES
   const getErrorMessage = (err: any) => {
     const data = err.response?.data;
     if (typeof data === 'string' && !data.includes('<html')) return data;
@@ -80,7 +79,6 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchData();
 
-    // Cierra el buscador si haces clic fuera de él
     const handleClickOutside = (event: any) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setShowDropdown(false);
@@ -93,14 +91,21 @@ export default function DashboardPage() {
   useEffect(() => {
     if (selectedAppointment) {
       setEditTeacher(selectedAppointment.employeeId?.toString() || '');
+      
+      // ✨ Extraemos la fecha y hora por separado para el modal de edición
       const date = new Date(selectedAppointment.startTime);
-      const tzOffset = date.getTimezoneOffset() * 60000;
-      const localISOTime = new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
-      setEditDate(localISOTime);
+      
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      setEditDateOnly(`${yyyy}-${mm}-${dd}`);
+      
+      const hh = String(date.getHours()).padStart(2, '0');
+      const min = String(date.getMinutes()).padStart(2, '0');
+      setEditTimeOnly(`${hh}:${min}`);
     }
   }, [selectedAppointment]);
 
-  // Lógica del Buscador de Alumnos
   const filteredCustomers = customers.filter(c => 
     c.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -111,16 +116,22 @@ export default function DashboardPage() {
     setShowDropdown(false);
   };
 
-  // Lógica del Carrito de Fechas
+  // ✨ Lógica actualizada para añadir al carrito
   const addDateToCart = () => {
-    if (!tempDate) return setFormError("Selecciona una fecha y hora");
-    const selectedDateObj = new Date(tempDate);
+    if (!tempDateOnly || !tempTimeOnly) return setFormError("Ingresa la fecha y la hora exacta");
+    
+    // Unimos los dos strings (Ej: "2026-09-06" y "15:30" => "2026-09-06T15:30")
+    const dateTimeString = `${tempDateOnly}T${tempTimeOnly}`;
+    const selectedDateObj = new Date(dateTimeString);
+    
     if (selectedDateObj < new Date()) return setFormError("No puedes agendar clases en el pasado");
-    if (selectedDates.includes(tempDate)) return setFormError("Esa fecha ya está en la lista");
+    if (selectedDates.includes(dateTimeString)) return setFormError("Esa clase ya está en la lista");
     
     setFormError('');
-    setSelectedDates([...selectedDates, tempDate].sort());
-    setTempDate('');
+    setSelectedDates([...selectedDates, dateTimeString].sort());
+    
+    // Vaciamos solo la hora para permitir agendar rápido el mismo día
+    setTempTimeOnly('');
   };
 
   const removeDate = (dateToRemove: string) => {
@@ -137,7 +148,6 @@ export default function DashboardPage() {
     const loadingToast = toast.loading(`Agendando ${selectedDates.length} clase(s)...`);
 
     try {
-      // Llamamos al nuevo endpoint "bulk"
       await api.post('/appointments/bulk', {
         businessId: 1,
         customerId: parseInt(selectedCustomer),
@@ -148,10 +158,10 @@ export default function DashboardPage() {
       
       toast.success('¡Clases agendadas con éxito!', { id: loadingToast });
       
-      // Limpiamos el modal
       setShowCreateModal(false);
       setSelectedDates([]);
-      setTempDate('');
+      setTempDateOnly('');
+      setTempTimeOnly('');
       setSelectedTeacher('');
       setSelectedService('');
       setSelectedCustomer('');
@@ -166,7 +176,11 @@ export default function DashboardPage() {
 
   const handleUpdateAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!editDateOnly || !editTimeOnly) return toast.error("Ingresa la fecha y la hora válida");
+
+    const fullDateTime = `${editDateOnly}T${editTimeOnly}`;
     const loadingToast = toast.loading('Guardando cambios...');
+    
     try {
       await api.put(`/appointments/${selectedAppointment.id}`, {
         id: selectedAppointment.id,
@@ -174,7 +188,7 @@ export default function DashboardPage() {
         customerId: selectedAppointment.customerId,
         serviceId: selectedAppointment.serviceId,
         employeeId: parseInt(editTeacher),
-        startTime: editDate,
+        startTime: fullDateTime,
         status: selectedAppointment.status
       });
       toast.success('Clase actualizada', { id: loadingToast });
@@ -206,7 +220,7 @@ export default function DashboardPage() {
         await api.delete(`/appointments/${selectedAppointment.id}`);
         toast.success('Clase eliminada con éxito', { id: loadingToast, duration: 5000 });
         setShowEditModal(false);
-        fetchData(); // Recargamos para ver cómo desaparece
+        fetchData(); 
       } catch (error: any) {
         toast.error(getErrorMessage(error), { id: loadingToast, duration: 5000 });
       }
@@ -217,11 +231,10 @@ export default function DashboardPage() {
     if (window.confirm('¿Confirmas que esta clase ya fue impartida? Se enviará a la nómina del instructor.')) {
       const loadingToast = toast.loading('Procesando clase...');
       try {
-        // Llamamos al endpoint mágico que hicimos en el backend
-        const response = await api.put(`/appointments/${selectedAppointment.id}/complete`);
+        await api.put(`/appointments/${selectedAppointment.id}/complete`);
         toast.success('Clase completada exitosamente', { id: loadingToast, duration: 5000 });
         setShowEditModal(false);
-        fetchData(); // Recargamos para ver el cuadro verde
+        fetchData(); 
       } catch (error: any) {
         toast.error(getErrorMessage(error), { id: loadingToast, duration: 5000 });
       }
@@ -244,7 +257,7 @@ export default function DashboardPage() {
     const customer = customers.find(c => c.id === apt.customerId)?.name || 'Alumno';
 
     let color = '#0891B2'; // Cyan (Pendiente)
-    if (apt.status === 1 || apt.status === 'Confirmed') color = '#F59E0B'; // 🟠 Ámbar/Naranja (Confirmada)
+    if (apt.status === 1 || apt.status === 'Confirmed') color = '#F59E0B'; // Ámbar/Naranja (Confirmada)
     if (apt.status === 3 || apt.status === 'Cancelled') color = '#EF4444'; // Rojo (Cancelada)
     if (apt.status === 2 || apt.status === 'Completed') color = '#10B981'; // Verde (Completada)
 
@@ -269,7 +282,6 @@ export default function DashboardPage() {
 
   const classesToday = appointments.filter((a: any) => new Date(a.startTime).toDateString() === new Date().toDateString());
 
-  // ✨ Variable mágica para saber si la clase actual se puede editar/completar/cancelar
   const canEdit = selectedAppointment && (
     selectedAppointment.status === 0 || selectedAppointment.status === 'Pending' ||
     selectedAppointment.status === 1 || selectedAppointment.status === 'Confirmed'
@@ -287,7 +299,6 @@ export default function DashboardPage() {
         </div>
         
         <div className="bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-800 flex-grow">
-          {/* Pequeña leyenda de colores para el admin */}
           <div className="flex flex-wrap gap-4 text-[11px] font-bold text-slate-400 mb-4 bg-slate-950 p-3 rounded-xl border border-slate-800/50">
             <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#0891B2] rounded-full"></span> PENDIENTE</span>
             <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#F59E0B] rounded-full"></span> CONFIRMADA</span>
@@ -334,7 +345,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* MODAL 1: AGENDAR CLASE (CON BUSCADOR Y CARRITO DE FECHAS) */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-slate-900 rounded-2xl shadow-2xl border border-slate-800 w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
@@ -351,7 +361,6 @@ export default function DashboardPage() {
             
             <form onSubmit={handleCreateAppointment} className="p-6 space-y-5">
               
-              {/* BUSCADOR DE ALUMNO */}
               <div className="relative" ref={dropdownRef}>
                 <label className="block text-sm font-semibold text-slate-300 mb-1">Buscar Alumno</label>
                 <input 
@@ -406,20 +415,26 @@ export default function DashboardPage() {
                 </div>
               </div>
               
-              {/* CARRITO DE FECHAS */}
+              {/* ✨ NUEVO: Interfaz dividida para el carrito de fechas */}
               <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                <label className="block text-sm font-semibold text-cyan-400 mb-2">Añadir Fechas al Paquete</label>
+                <label className="block text-sm font-semibold text-cyan-400 mb-2">Añadir Fecha y Hora</label>
                 <div className="flex gap-2 mb-3">
                   <input 
-                    type="datetime-local" 
-                    value={tempDate} 
-                    onChange={(e) => setTempDate(e.target.value)} 
-                    className="flex-1 border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white outline-none"
+                    type="date" 
+                    value={tempDateOnly} 
+                    onChange={(e) => setTempDateOnly(e.target.value)} 
+                    className="w-[45%] border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white outline-none [color-scheme:dark]"
+                  />
+                  <input 
+                    type="time" 
+                    value={tempTimeOnly} 
+                    onChange={(e) => setTempTimeOnly(e.target.value)} 
+                    className="w-[35%] border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white outline-none [color-scheme:dark]"
                   />
                   <button 
                     type="button" 
                     onClick={addDateToCart}
-                    className="bg-slate-700 text-white font-bold px-4 rounded-xl hover:bg-cyan-600 transition-colors"
+                    className="w-[20%] bg-slate-700 text-white font-bold px-3 rounded-xl hover:bg-cyan-600 transition-colors text-sm"
                   >
                     Añadir
                   </button>
@@ -427,7 +442,7 @@ export default function DashboardPage() {
 
                 <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
                   {selectedDates.length === 0 ? (
-                    <p className="text-slate-500 text-xs text-center py-2 italic">Añade fechas para armar el horario del alumno.</p>
+                    <p className="text-slate-500 text-xs text-center py-2 italic">Añade horas al paquete de clases.</p>
                   ) : (
                     selectedDates.map((date, index) => (
                       <div key={index} className="flex justify-between items-center bg-slate-800 p-2.5 rounded-lg border border-slate-700/50">
@@ -454,7 +469,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* MODAL 2: DETALLES Y EDICIÓN DE CLASE */}
       {showEditModal && selectedAppointment && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
            <div className="bg-slate-900 rounded-2xl shadow-2xl border border-slate-800 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
@@ -462,7 +476,6 @@ export default function DashboardPage() {
              <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-start bg-slate-900">
                <div>
                  <div className="flex items-center gap-2 mb-1">
-                   {/* Colores del puntito superior */}
                    <span className={`w-3 h-3 rounded-full ${
                       (selectedAppointment.status === 3 || selectedAppointment.status === 'Cancelled') ? 'bg-red-500' : 
                       (selectedAppointment.status === 2 || selectedAppointment.status === 'Completed') ? 'bg-emerald-500' :
@@ -477,14 +490,12 @@ export default function DashboardPage() {
              
              <form onSubmit={handleUpdateAppointment} className="p-6 space-y-4">
                
-               {/* AVISO SI ESTÁ CANCELADA */}
                {(selectedAppointment.status === 3 || selectedAppointment.status === 'Cancelled') && (
                  <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/20 mb-4 text-center">
                    <p className="text-sm font-semibold text-red-400">Esta clase se encuentra cancelada.</p>
                  </div>
                )}
 
-               {/* AVISO SI ESTÁ COMPLETADA */}
                {(selectedAppointment.status === 2 || selectedAppointment.status === 'Completed') && (
                  <div className="bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20 mb-4 text-center">
                    <p className="text-sm font-semibold text-emerald-400">Esta clase ya fue impartida y pagada al instructor.</p>
@@ -503,21 +514,32 @@ export default function DashboardPage() {
                  </select>
                </div>
                
-               <div>
-                 <label className="block text-sm font-semibold text-slate-300 mb-1">Reagendar (Fecha y Hora)</label>
-                 <input 
-                   type="datetime-local" 
-                   value={editDate} 
-                   onChange={(e) => setEditDate(e.target.value)} 
-                   disabled={!canEdit}
-                   className="w-full border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white disabled:opacity-50 outline-none" 
-                 />
+               {/* ✨ NUEVO: Interfaz dividida para la edición */}
+               <div className="flex gap-4">
+                 <div className="w-1/2">
+                   <label className="block text-sm font-semibold text-slate-300 mb-1">Fecha</label>
+                   <input 
+                     type="date" 
+                     value={editDateOnly} 
+                     onChange={(e) => setEditDateOnly(e.target.value)} 
+                     disabled={!canEdit}
+                     className="w-full border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white disabled:opacity-50 outline-none [color-scheme:dark]" 
+                   />
+                 </div>
+                 <div className="w-1/2">
+                   <label className="block text-sm font-semibold text-slate-300 mb-1">Hora</label>
+                   <input 
+                     type="time" 
+                     value={editTimeOnly} 
+                     onChange={(e) => setEditTimeOnly(e.target.value)} 
+                     disabled={!canEdit}
+                     className="w-full border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white disabled:opacity-50 outline-none [color-scheme:dark]" 
+                   />
+                 </div>
                </div>
 
-               {/* --- ZONA DE BOTONES --- */}
                <div className="pt-6 flex flex-col gap-3">
                  
-                 {/* SI LA CLASE ESTÁ PENDIENTE O CONFIRMADA (Muestra botones de acción) */}
                  {canEdit && (
                    <>
                      <button type="button" onClick={handleCompleteAppointment} className="w-full px-4 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-500 shadow-md shadow-emerald-900/20 transition-colors flex items-center justify-center gap-2">
@@ -534,14 +556,12 @@ export default function DashboardPage() {
                    </>
                  )}
 
-                 {/* SI LA CLASE YA PASÓ (Solo permite cerrar) */}
                  {!canEdit && (
                     <button type="button" onClick={() => setShowEditModal(false)} className="w-full px-4 py-3 border border-slate-700 text-slate-300 font-semibold rounded-xl hover:bg-slate-800 transition-colors">
                      Cerrar ventana
                    </button>
                  )}
 
-                 {/* EL BOTÓN DE EMERGENCIA (Siempre visible al fondo) */}
                  <div className="border-t border-slate-800 mt-2 pt-4">
                    <button type="button" onClick={handleDeleteAppointment} className="w-full px-4 py-3 bg-red-900/30 text-red-500 border border-red-900/50 font-bold rounded-xl hover:bg-red-900/60 transition-colors flex items-center justify-center gap-2">
                      🗑️ Eliminar Error (Devuelve Crédito)

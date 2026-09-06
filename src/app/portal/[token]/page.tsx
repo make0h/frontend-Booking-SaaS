@@ -86,6 +86,29 @@ export default function ParentPortalPage({ params }: { params: Promise<{ token: 
     }
   };
 
+  const handleCancelClass = async () => {
+    if (!confirm('¿Estás seguro de que deseas cancelar esta clase? Recuperarás tu crédito si lo haces con más de 8 horas de anticipación.')) return;
+    
+    const loadingToast = toast.loading('Procesando cancelación...');
+    try {
+      const res = await api.put(`/portal/${token}/appointments/${selectedAppointment.id}/cancel`);
+      toast.success(res.data.message || 'Clase cancelada exitosamente', { id: loadingToast, duration: 5000 });
+      setShowModal(false);
+      
+      // Recargamos datos para actualizar el calendario y sumar el crédito
+      const response = await api.get(`/portal/${token}`);
+      setCustomer(response.data.customer);
+      setAppointments(response.data.appointments);
+    } catch (err: any) {
+      // Aquí saltará el error de las 8 horas y se lo mostramos al papá
+      toast.error(err.response?.data || 'Error al cancelar la clase', { 
+        id: loadingToast, 
+        duration: 6000,
+        icon: '⚠️'
+      });
+    }
+  };
+
   const handleSimulatePayment = () => {
     toast('Redirigiendo a pasarela de pagos (Wompi/MercadoPago)...', {
       icon: '💳',
@@ -254,6 +277,17 @@ export default function ParentPortalPage({ params }: { params: Promise<{ token: 
                     </div>
                   )}
                   
+                  {/* ✨ NUEVO BOTÓN: Solo visible si está pendiente o confirmada */}
+                  {(selectedAppointment.status === 0 || selectedAppointment.status === 'Pending' || 
+                    selectedAppointment.status === 1 || selectedAppointment.status === 'Confirmed') && (
+                    <button 
+                      onClick={handleCancelClass}
+                      className="w-full px-4 py-3 bg-red-500/10 text-red-500 font-bold rounded-xl hover:bg-red-500 hover:text-white border border-red-500/20 transition-all active:scale-95 flex justify-center items-center gap-2"
+                    >
+                      <span className="text-lg leading-none">✖</span> Cancelar Clase
+                    </button>
+                  )}
+
                   <button 
                     onClick={() => setShowModal(false)} 
                     className="w-full px-4 py-3 border border-slate-700 text-slate-400 font-bold rounded-xl hover:bg-slate-800 hover:text-white transition-colors"

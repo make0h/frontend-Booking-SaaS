@@ -9,6 +9,9 @@ export default function CustomersPage() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
+  // ✨ NUEVO: Estado para la barra de búsqueda
+  const [searchTerm, setSearchTerm] = useState('');
+  
   // Estados para el Modal de Crear/Editar
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
@@ -27,7 +30,6 @@ export default function CustomersPage() {
 
   const router = useRouter();
 
-  // FILTRO INTELIGENTE DE ERRORES
   const getErrorMessage = (err: any) => {
     const data = err.response?.data;
     if (typeof data === 'string' && !data.includes('<html')) return data;
@@ -48,6 +50,11 @@ export default function CustomersPage() {
   useEffect(() => {
     fetchCustomers();
   }, []);
+
+  // ✨ LÓGICA DE BÚSQUEDA: Filtramos la lista en tiempo real
+  const filteredCustomers = customers.filter(customer => 
+    customer.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const openCreateModal = () => {
     resetForm();
@@ -130,24 +137,18 @@ export default function CustomersPage() {
     setEditingId(null);
   };
 
-  // ✨ NUEVO: Función para generar y copiar el Magic Link
   const generateAndCopyMagicLink = async (customerId: number, currentToken: string | null) => {
     const loadingToast = toast.loading('Preparando enlace mágico...');
     try {
       let tokenToUse = currentToken;
       
-      // Si el usuario aún no tiene un token generado, lo pedimos al servidor
       if (!tokenToUse) {
         const response = await api.post(`/users/customers/${customerId}/generate-magic-link`);
         tokenToUse = response.data.magicToken;
-        // Actualizamos la lista de clientes en segundo plano para que el botón ya sepa que tiene token
         fetchCustomers(); 
       }
 
-      // Armamos la URL completa (ej: https://tudominio.com/portal/abcd123)
       const url = `${window.location.origin}/portal/${tokenToUse}`;
-      
-      // La copiamos al portapapeles del dispositivo
       await navigator.clipboard.writeText(url);
       
       toast.success('¡Enlace del Portal copiado!', { 
@@ -171,17 +172,40 @@ export default function CustomersPage() {
 
   return (
     <>
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+      {/* HEADER CON BUSCADOR */}
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-10 gap-6">
         <div>
           <h2 className="text-3xl font-extrabold text-white tracking-tight">Directorio de Alumnos</h2>
           <p className="text-slate-400 mt-1">Gestiona las inscripciones y el saldo de clases (créditos) de cada niño.</p>
         </div>
-        <button 
-          onClick={openCreateModal}
-          className="bg-cyan-600 text-white font-bold px-6 py-3 rounded-xl shadow-md shadow-cyan-900/50 hover:bg-cyan-500 transition-all active:scale-95 flex items-center gap-2"
-        >
-          <span className="text-xl">+</span> Nuevo Alumno
-        </button>
+        
+        <div className="flex flex-col sm:flex-row w-full xl:w-auto gap-4">
+          <div className="relative w-full sm:w-72">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">🔍</span>
+            <input 
+              type="text" 
+              placeholder="Buscar alumno por nombre..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-700 text-white placeholder-slate-500 rounded-xl py-3 pl-11 pr-4 focus:ring-2 focus:ring-cyan-500 outline-none transition-all shadow-md"
+            />
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')} 
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 font-bold"
+              >
+                &times;
+              </button>
+            )}
+          </div>
+          
+          <button 
+            onClick={openCreateModal}
+            className="w-full sm:w-auto bg-cyan-600 text-white font-bold px-6 py-3 rounded-xl shadow-md shadow-cyan-900/50 hover:bg-cyan-500 transition-all active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap"
+          >
+            <span className="text-xl leading-none">+</span> Nuevo Alumno
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -191,8 +215,14 @@ export default function CustomersPage() {
             <h3 className="text-lg font-bold text-white">No hay alumnos registrados</h3>
             <p className="text-slate-400 font-medium mt-1">Registra a tu primer alumno y asígnale su paquete de clases.</p>
           </div>
+        ) : filteredCustomers.length === 0 ? (
+          <div className="col-span-full bg-slate-900 p-12 rounded-2xl border border-slate-800 text-center shadow-xl">
+            <div className="text-4xl mb-3">🔎</div>
+            <h3 className="text-lg font-bold text-white">No hay resultados</h3>
+            <p className="text-slate-400 font-medium mt-1">No encontramos ningún alumno llamado "{searchTerm}".</p>
+          </div>
         ) : (
-          customers.map((customer: any) => (
+          filteredCustomers.map((customer: any) => (
             <div key={customer.id} className="bg-slate-900 rounded-2xl p-6 border border-slate-800 shadow-xl hover:border-cyan-500/50 transition-all flex flex-col justify-between group">
               
               <div className="flex justify-between items-start mb-4">
@@ -235,7 +265,6 @@ export default function CustomersPage() {
                 </div>
               </div>
 
-              {/* ✨ NUEVO: Botón de Magic Link */}
               <button 
                 onClick={() => generateAndCopyMagicLink(customer.id, customer.magicToken)}
                 className="mt-4 w-full py-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-xl text-sm font-bold transition-colors flex justify-center items-center gap-2 active:scale-95"
