@@ -16,9 +16,7 @@ const CalendarWidget = dynamic(() => import('../../dashboard/CalendarWidget'), {
   )
 });
 
-// IMPORTANTE: En Next.js 15, params viene como una Promesa
 export default function ParentPortalPage({ params }: { params: Promise<{ token: string }> }) {
-  // Desenvolvemos la promesa para sacar el token de forma segura
   const resolvedParams = use(params);
   const token = resolvedParams.token;
 
@@ -30,15 +28,68 @@ export default function ParentPortalPage({ params }: { params: Promise<{ token: 
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
 
-  // Ya no dependemos de params.token, sino de la variable token limpia
   useEffect(() => {
     const fetchPortalData = async () => {
       try {
         const response = await api.get(`/portal/${token}`);
-        setCustomer(response.data.customer);
-        setAppointments(response.data.appointments);
+        const fetchedCustomer = response.data.customer;
+        const fetchedAppointments = response.data.appointments;
+
+        setCustomer(fetchedCustomer);
+        setAppointments(fetchedAppointments);
+
+        // ✨ REVISIÓN AL CARGAR: Verificamos si hay una clase hoy sin confirmar (Estado 0 o 'Pending')
+        const todayStr = new Date().toDateString();
+        const pendingTodayAppointment = fetchedAppointments.find((apt: any) => {
+          const aptDate = new Date(apt.startTime);
+          const isToday = aptDate.toDateString() === todayStr;
+          const isPending = apt.status === 0 || apt.status === 'Pending';
+          return isToday && isPending;
+        });
+
+        if (pendingTodayAppointment) {
+          // Lanzamos un toast grande y llamativo que se queda en pantalla
+          toast(
+            (t) => (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2 font-bold text-amber-400">
+                  <span>🚨</span> ¡Atención! Tienes una clase hoy
+                </div>
+                <p className="text-xs text-slate-300">
+                  Hay una clase programada para hoy que aún no ha sido confirmada. ¡Revisa tu horario!
+                </p>
+                <button
+                  onClick={() => {
+                    toast.dismiss(t.id);
+                    // Opcionalmente abrimos el detalle de esa cita de inmediato
+                    setSelectedAppointment({
+                      ...pendingTodayAppointment,
+                      startObj: new Date(pendingTodayAppointment.startTime),
+                      endObj: new Date(new Date(pendingTodayAppointment.startTime).getTime() + (pendingTodayAppointment.durationMinutes * 60 * 1000))
+                    });
+                    setShowModal(true);
+                  }}
+                  className="mt-1 py-1.5 px-3 bg-amber-500 text-slate-950 font-extrabold rounded-lg text-xs hover:bg-amber-400 transition-colors"
+                >
+                  Ver y Confirmar Ahora
+                </button>
+              </div>
+            ),
+            {
+              duration: 8000,
+              position: 'top-center',
+              style: {
+                background: '#1e293b',
+                color: '#fff',
+                border: '1px solid #f59e0b',
+                padding: '16px',
+                borderRadius: '16px',
+              },
+            }
+          );
+        }
+
       } catch (err: any) {
-        // Cambiamos el texto para no asustar a la clienta con "expirado"
         setError('Enlace inválido. Verifica que hayas copiado el link correctamente.');
       } finally {
         setLoading(false);
@@ -53,18 +104,16 @@ export default function ParentPortalPage({ params }: { params: Promise<{ token: 
     
     const loadingToast = toast.loading('Confirmando asistencia...');
     try {
-      // 1. Confirmamos la clase
       await api.put(`/portal/${token}/appointments/${selectedAppointment.id}/confirm`);
       setShowModal(false);
       
-      // 2. Recargamos los datos silenciosamente para tener la info actualizada
       const response = await api.get(`/portal/${token}`);
       const updatedCustomer = response.data.customer;
       
       setCustomer(updatedCustomer);
       setAppointments(response.data.appointments);
 
-      // 3. ✨ LA NOTIFICACIÓN INTELIGENTE DE CRÉDITOS
+      // ✨ NOTIFICACIÓN INTELIGENTE DE CRÉDITOS RESTANTES
       const creditosRestantes = updatedCustomer.credits;
       
       if (creditosRestantes > 1) {
@@ -95,12 +144,10 @@ export default function ParentPortalPage({ params }: { params: Promise<{ token: 
       toast.success(res.data.message || 'Clase cancelada exitosamente', { id: loadingToast, duration: 5000 });
       setShowModal(false);
       
-      // Recargamos datos para actualizar el calendario y sumar el crédito
       const response = await api.get(`/portal/${token}`);
       setCustomer(response.data.customer);
       setAppointments(response.data.appointments);
     } catch (err: any) {
-      // Aquí saltará el error de las 8 horas y se lo mostramos al papá
       toast.error(err.response?.data || 'Error al cancelar la clase', { 
         id: loadingToast, 
         duration: 6000,
@@ -277,7 +324,6 @@ export default function ParentPortalPage({ params }: { params: Promise<{ token: 
                     </div>
                   )}
                   
-                  {/* ✨ NUEVO BOTÓN: Solo visible si está pendiente o confirmada */}
                   {(selectedAppointment.status === 0 || selectedAppointment.status === 'Pending' || 
                     selectedAppointment.status === 1 || selectedAppointment.status === 'Confirmed') && (
                     <button 
