@@ -130,6 +130,37 @@ export default function CustomersPage() {
     setEditingId(null);
   };
 
+  // ✨ NUEVO: Función para generar y copiar el Magic Link
+  const generateAndCopyMagicLink = async (customerId: number, currentToken: string | null) => {
+    const loadingToast = toast.loading('Preparando enlace mágico...');
+    try {
+      let tokenToUse = currentToken;
+      
+      // Si el usuario aún no tiene un token generado, lo pedimos al servidor
+      if (!tokenToUse) {
+        const response = await api.post(`/users/customers/${customerId}/generate-magic-link`);
+        tokenToUse = response.data.magicToken;
+        // Actualizamos la lista de clientes en segundo plano para que el botón ya sepa que tiene token
+        fetchCustomers(); 
+      }
+
+      // Armamos la URL completa (ej: https://tudominio.com/portal/abcd123)
+      const url = `${window.location.origin}/portal/${tokenToUse}`;
+      
+      // La copiamos al portapapeles del dispositivo
+      await navigator.clipboard.writeText(url);
+      
+      toast.success('¡Enlace del Portal copiado!', { 
+        id: loadingToast, 
+        icon: '🔗',
+        duration: 4000 
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error('Error al generar el enlace', { id: loadingToast });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -203,6 +234,15 @@ export default function CustomersPage() {
                   {customer.monthlyCredits || 0} Clases
                 </div>
               </div>
+
+              {/* ✨ NUEVO: Botón de Magic Link */}
+              <button 
+                onClick={() => generateAndCopyMagicLink(customer.id, customer.magicToken)}
+                className="mt-4 w-full py-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-xl text-sm font-bold transition-colors flex justify-center items-center gap-2 active:scale-95"
+              >
+                <span>🔗</span> Copiar Link del Portal
+              </button>
+
             </div>
           ))
         )}

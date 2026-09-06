@@ -186,7 +186,7 @@ export default function DashboardPage() {
   };
 
   const handleCancelAppointment = async () => {
-    if (window.confirm('¿Estás totalmente seguro de cancelar esta clase? Esta acción notificará al sistema.')) {
+    if (window.confirm('¿Estás totalmente seguro de cancelar esta clase? Esta acción notificará al sistema y devolverá el crédito.')) {
       const loadingToast = toast.loading('Cancelando clase...');
       try {
         const response = await api.put(`/appointments/${selectedAppointment.id}/cancel`);
@@ -214,7 +214,7 @@ export default function DashboardPage() {
   };
 
   const handleCompleteAppointment = async () => {
-    if (window.confirm('¿Confirmas que esta clase ya fue impartida? Se descontará el crédito al alumno y pasará a nómina.')) {
+    if (window.confirm('¿Confirmas que esta clase ya fue impartida? Se enviará a la nómina del instructor.')) {
       const loadingToast = toast.loading('Procesando clase...');
       try {
         // Llamamos al endpoint mágico que hicimos en el backend
@@ -244,6 +244,7 @@ export default function DashboardPage() {
     const customer = customers.find(c => c.id === apt.customerId)?.name || 'Alumno';
 
     let color = '#0891B2'; // Cyan (Pendiente)
+    if (apt.status === 1 || apt.status === 'Confirmed') color = '#F59E0B'; // 🟠 Ámbar/Naranja (Confirmada)
     if (apt.status === 3 || apt.status === 'Cancelled') color = '#EF4444'; // Rojo (Cancelada)
     if (apt.status === 2 || apt.status === 'Completed') color = '#10B981'; // Verde (Completada)
 
@@ -268,6 +269,12 @@ export default function DashboardPage() {
 
   const classesToday = appointments.filter((a: any) => new Date(a.startTime).toDateString() === new Date().toDateString());
 
+  // ✨ Variable mágica para saber si la clase actual se puede editar/completar/cancelar
+  const canEdit = selectedAppointment && (
+    selectedAppointment.status === 0 || selectedAppointment.status === 'Pending' ||
+    selectedAppointment.status === 1 || selectedAppointment.status === 'Confirmed'
+  );
+
   return (
     <div className="flex flex-col lg:flex-row gap-8">
       
@@ -280,6 +287,14 @@ export default function DashboardPage() {
         </div>
         
         <div className="bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-800 flex-grow">
+          {/* Pequeña leyenda de colores para el admin */}
+          <div className="flex flex-wrap gap-4 text-[11px] font-bold text-slate-400 mb-4 bg-slate-950 p-3 rounded-xl border border-slate-800/50">
+            <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#0891B2] rounded-full"></span> PENDIENTE</span>
+            <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#F59E0B] rounded-full"></span> CONFIRMADA</span>
+            <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#10B981] rounded-full"></span> IMPARTIDA</span>
+            <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#EF4444] rounded-full"></span> CANCELADA</span>
+          </div>
+
           <CalendarWidget events={calendarEvents} onEventClick={handleEventClick} />
         </div>
       </div>
@@ -447,7 +462,12 @@ export default function DashboardPage() {
              <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-start bg-slate-900">
                <div>
                  <div className="flex items-center gap-2 mb-1">
-                   <span className={`w-3 h-3 rounded-full ${selectedAppointment.status === 3 || selectedAppointment.status === 'Cancelled' ? 'bg-red-500' : 'bg-cyan-500'}`}></span>
+                   {/* Colores del puntito superior */}
+                   <span className={`w-3 h-3 rounded-full ${
+                      (selectedAppointment.status === 3 || selectedAppointment.status === 'Cancelled') ? 'bg-red-500' : 
+                      (selectedAppointment.status === 2 || selectedAppointment.status === 'Completed') ? 'bg-emerald-500' :
+                      (selectedAppointment.status === 1 || selectedAppointment.status === 'Confirmed') ? 'bg-amber-500' : 'bg-cyan-500'
+                   }`}></span>
                    <h3 className="text-lg font-bold text-white">{selectedAppointment.serviceName}</h3>
                  </div>
                  <p className="text-sm text-slate-400 font-medium">Alumno: {selectedAppointment.customerName}</p>
@@ -456,81 +476,80 @@ export default function DashboardPage() {
              </div>
              
              <form onSubmit={handleUpdateAppointment} className="p-6 space-y-4">
-                
-                {/* AVISO SI ESTÁ CANCELADA */}
-                {(selectedAppointment.status === 3 || selectedAppointment.status === 'Cancelled') && (
-                  <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/20 mb-4 text-center">
-                    <p className="text-sm font-semibold text-red-400">Esta clase se encuentra cancelada.</p>
-                  </div>
-                )}
+               
+               {/* AVISO SI ESTÁ CANCELADA */}
+               {(selectedAppointment.status === 3 || selectedAppointment.status === 'Cancelled') && (
+                 <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/20 mb-4 text-center">
+                   <p className="text-sm font-semibold text-red-400">Esta clase se encuentra cancelada.</p>
+                 </div>
+               )}
 
-                {/* AVISO SI ESTÁ COMPLETADA */}
-                {(selectedAppointment.status === 2 || selectedAppointment.status === 'Completed') && (
-                  <div className="bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20 mb-4 text-center">
-                    <p className="text-sm font-semibold text-emerald-400">Esta clase ya fue impartida.</p>
-                  </div>
-                )}
+               {/* AVISO SI ESTÁ COMPLETADA */}
+               {(selectedAppointment.status === 2 || selectedAppointment.status === 'Completed') && (
+                 <div className="bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20 mb-4 text-center">
+                   <p className="text-sm font-semibold text-emerald-400">Esta clase ya fue impartida y pagada al instructor.</p>
+                 </div>
+               )}
 
-                <div>
-                  <label className="block text-sm font-semibold text-slate-300 mb-1">Reasignar Profesor</label>
-                  <select 
-                    value={editTeacher} 
-                    onChange={(e) => setEditTeacher(e.target.value)} 
-                    // Solo dejamos editar si la clase está pendiente
-                    disabled={selectedAppointment.status !== 0 && selectedAppointment.status !== 'Pending'}
-                    className="w-full border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white disabled:opacity-50 outline-none"
-                  >
-                    {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-semibold text-slate-300 mb-1">Reagendar (Fecha y Hora)</label>
-                  <input 
-                    type="datetime-local" 
-                    value={editDate} 
-                    onChange={(e) => setEditDate(e.target.value)} 
-                    disabled={selectedAppointment.status !== 0 && selectedAppointment.status !== 'Pending'}
-                    className="w-full border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white disabled:opacity-50 outline-none" 
-                  />
-                </div>
+               <div>
+                 <label className="block text-sm font-semibold text-slate-300 mb-1">Reasignar Profesor</label>
+                 <select 
+                   value={editTeacher} 
+                   onChange={(e) => setEditTeacher(e.target.value)} 
+                   disabled={!canEdit}
+                   className="w-full border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white disabled:opacity-50 outline-none"
+                 >
+                   {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                 </select>
+               </div>
+               
+               <div>
+                 <label className="block text-sm font-semibold text-slate-300 mb-1">Reagendar (Fecha y Hora)</label>
+                 <input 
+                   type="datetime-local" 
+                   value={editDate} 
+                   onChange={(e) => setEditDate(e.target.value)} 
+                   disabled={!canEdit}
+                   className="w-full border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white disabled:opacity-50 outline-none" 
+                 />
+               </div>
 
-                {/* --- ZONA DE BOTONES --- */}
-                <div className="pt-6 flex flex-col gap-3">
-                  
-                  {/* SI LA CLASE ESTÁ PENDIENTE (Muestra todas las opciones de acción) */}
-                  {(selectedAppointment.status === 0 || selectedAppointment.status === 'Pending') && (
-                    <>
-                      <button type="button" onClick={handleCompleteAppointment} className="w-full px-4 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-500 shadow-md shadow-emerald-900/20 transition-colors flex items-center justify-center gap-2">
-                        ✅ Marcar clase como Impartida
-                      </button>
+               {/* --- ZONA DE BOTONES --- */}
+               <div className="pt-6 flex flex-col gap-3">
+                 
+                 {/* SI LA CLASE ESTÁ PENDIENTE O CONFIRMADA (Muestra botones de acción) */}
+                 {canEdit && (
+                   <>
+                     <button type="button" onClick={handleCompleteAppointment} className="w-full px-4 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-500 shadow-md shadow-emerald-900/20 transition-colors flex items-center justify-center gap-2">
+                       ✅ Marcar clase como Impartida
+                     </button>
 
-                      <button type="submit" className="w-full px-4 py-3 bg-cyan-600 text-white font-semibold rounded-xl hover:bg-cyan-500 shadow-md transition-colors">
-                        Reagendar / Guardar Cambios
-                      </button>
+                     <button type="submit" className="w-full px-4 py-3 bg-cyan-600 text-white font-semibold rounded-xl hover:bg-cyan-500 shadow-md transition-colors">
+                       Reagendar / Guardar Cambios
+                     </button>
 
-                      <button type="button" onClick={handleCancelAppointment} className="w-full px-4 py-3 bg-red-500/10 text-red-400 border border-red-500/20 font-semibold rounded-xl hover:bg-red-500/20 transition-colors">
-                        🚫 Cancelar Clase Definitivamente
-                      </button>
-                    </>
-                  )}
+                     <button type="button" onClick={handleCancelAppointment} className="w-full px-4 py-3 bg-red-500/10 text-red-400 border border-red-500/20 font-semibold rounded-xl hover:bg-red-500/20 transition-colors">
+                       🚫 Cancelar Clase Definitivamente
+                     </button>
+                   </>
+                 )}
 
-                  {/* SI LA CLASE YA PASÓ (Solo permite cerrar) */}
-                  {(selectedAppointment.status !== 0 && selectedAppointment.status !== 'Pending') && (
-                     <button type="button" onClick={() => setShowEditModal(false)} className="w-full px-4 py-3 border border-slate-700 text-slate-300 font-semibold rounded-xl hover:bg-slate-800 transition-colors">
-                      Cerrar ventana
-                    </button>
-                  )}
+                 {/* SI LA CLASE YA PASÓ (Solo permite cerrar) */}
+                 {!canEdit && (
+                    <button type="button" onClick={() => setShowEditModal(false)} className="w-full px-4 py-3 border border-slate-700 text-slate-300 font-semibold rounded-xl hover:bg-slate-800 transition-colors">
+                     Cerrar ventana
+                   </button>
+                 )}
 
-                  {/* EL BOTÓN DE EMERGENCIA (Siempre visible al fondo) */}
-                  <div className="border-t border-slate-800 mt-2 pt-4">
-                    <button type="button" onClick={handleDeleteAppointment} className="w-full px-4 py-3 bg-red-900/30 text-red-500 border border-red-900/50 font-bold rounded-xl hover:bg-red-900/60 transition-colors flex items-center justify-center gap-2">
-                      🗑️ Eliminar Error (Devuelve Crédito)
-                    </button>
-                  </div>
+                 {/* EL BOTÓN DE EMERGENCIA (Siempre visible al fondo) */}
+                 <div className="border-t border-slate-800 mt-2 pt-4">
+                   <button type="button" onClick={handleDeleteAppointment} className="w-full px-4 py-3 bg-red-900/30 text-red-500 border border-red-900/50 font-bold rounded-xl hover:bg-red-900/60 transition-colors flex items-center justify-center gap-2">
+                     🗑️ Eliminar Error (Devuelve Crédito)
+                   </button>
+                 </div>
 
-                </div>
-              </form>
+               </div>
+             </form>
 
            </div>
         </div>

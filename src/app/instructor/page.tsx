@@ -100,7 +100,9 @@ export default function InstructorPortalPage() {
     // ✨ CORRECCIÓN DE COLORES SEGÚN EL ESTADO REAL
     // Aseguramos que detecte tanto si viene como número (0, 1, 2) o texto
     let color = '#0891B2'; // Cyan por defecto (Pendiente / 0)
-    
+    if (apt.status === 1 || apt.status === 'Confirmed') {
+      color = '#F59E0B'; // 🟠 Ámbar/Naranja: Confirmada (Estado 1)
+    }
     // Si es completada (Generalmente 1 o "Completed")
     if (apt.status === 2 || apt.status === 'Completed') {
       color = '#10B981'; // Verde
@@ -279,19 +281,22 @@ export default function InstructorPortalPage() {
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  {(selectedAppointment.status === 0 || selectedAppointment.status === 'Pending') && (
+                  
+                  {/* ✨ El instructor SOLO ve el botón de Completar si está Pendiente (0) o Confirmada (1) */}
+                  {(selectedAppointment.status === 0 || selectedAppointment.status === 'Pending' || 
+                    selectedAppointment.status === 1 || selectedAppointment.status === 'Confirmed') && (
                     <button 
                       onClick={handleCompleteClass}
                       className="w-full px-4 py-3.5 bg-cyan-600 text-white font-bold rounded-xl hover:bg-cyan-500 shadow-lg shadow-cyan-900/50 transition-all active:scale-95 flex justify-center items-center gap-2"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-                      Marcar como Completada
+                      Marcar como Impartida
                     </button>
                   )}
                   
                   <button 
                     onClick={() => setShowModal(false)} 
-                    className="w-full px-4 py-3 border border-slate-700 text-slate-400 font-bold rounded-xl hover:bg-slate-800 hover:text-white transition-colors"
+                    className="w-full px-4 py-3 border border-slate-700 text-slate-400 font-bold rounded-xl hover:bg-slate-800 hover:text-white transition-colors mt-2"
                   >
                     Cerrar Detalles
                   </button>
