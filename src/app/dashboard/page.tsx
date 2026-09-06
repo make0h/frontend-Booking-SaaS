@@ -447,7 +447,7 @@ export default function DashboardPage() {
              <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-start bg-slate-900">
                <div>
                  <div className="flex items-center gap-2 mb-1">
-                   <span className={`w-3 h-3 rounded-full ${selectedAppointment.status === 2 || selectedAppointment.status === 'Cancelled' ? 'bg-red-500' : 'bg-cyan-500'}`}></span>
+                   <span className={`w-3 h-3 rounded-full ${selectedAppointment.status === 3 || selectedAppointment.status === 'Cancelled' ? 'bg-red-500' : 'bg-cyan-500'}`}></span>
                    <h3 className="text-lg font-bold text-white">{selectedAppointment.serviceName}</h3>
                  </div>
                  <p className="text-sm text-slate-400 font-medium">Alumno: {selectedAppointment.customerName}</p>
@@ -465,7 +465,7 @@ export default function DashboardPage() {
                 )}
 
                 {/* AVISO SI ESTÁ COMPLETADA */}
-                {(selectedAppointment.status === 1 || selectedAppointment.status === 'Completed') && (
+                {(selectedAppointment.status === 2 || selectedAppointment.status === 'Completed') && (
                   <div className="bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20 mb-4 text-center">
                     <p className="text-sm font-semibold text-emerald-400">Esta clase ya fue impartida.</p>
                   </div>

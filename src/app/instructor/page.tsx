@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import api from '@/lib/api';
-import PayrollPanel from './PayrollPanel'; // <-- IMPORTAMOS EL PANEL
+import PayrollPanel from './PayrollPanel';
 
-// Cargamos el nuevo calendario hermoso que acabamos de crear
+// Cargamos el calendario
 const CalendarWidget = dynamic(() => import('../dashboard/CalendarWidget'), { 
   ssr: false,
   loading: () => (
@@ -23,13 +23,9 @@ export default function InstructorPortalPage() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // ✨ NUEVO: Guardamos el ID del usuario para pasárselo a la nómina
   const [myUserId, setMyUserId] = useState<string>('');
-  
-  // ✨ NUEVO: Estado para las pestañas
   const [activeTab, setActiveTab] = useState<'schedule' | 'payroll'>('schedule');
 
-  // Estado para el modal de detalles
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
 
@@ -38,7 +34,7 @@ export default function InstructorPortalPage() {
   const fetchMyData = async () => {
     try {
       const storedUserId = localStorage.getItem('userId'); 
-      if (storedUserId) setMyUserId(storedUserId); // Lo guardamos en el estado
+      if (storedUserId) setMyUserId(storedUserId);
 
       const [aptRes, servRes, custRes] = await Promise.all([
         api.get('/appointments'),
@@ -46,7 +42,6 @@ export default function InstructorPortalPage() {
         api.get('/users/customers')
       ]);
 
-      // FILTRO: Solo mis clases
       const myAppointments = aptRes.data.filter((a: any) => a.employeeId?.toString() === storedUserId);
       
       setAppointments(myAppointments);
@@ -85,7 +80,6 @@ export default function InstructorPortalPage() {
   };
 
   const handleEventClick = (info: any) => {
-    // Info extendida que le pasamos al calendario
     const apt = info.event.extendedProps;
     setSelectedAppointment({
       ...apt,
@@ -103,9 +97,18 @@ export default function InstructorPortalPage() {
 
     const customer = customers.find(c => c.id === apt.customerId)?.name || 'Alumno Eliminado';
 
-    let color = '#0891B2'; // Cyan (Pendiente)
-    if (apt.status === 2 || apt.status === 'Cancelled') color = '#EF4444'; // Rojo (Cancelada)
-    if (apt.status === 1 || apt.status === 'Completed') color = '#10B981'; // Verde (Completada)
+    // ✨ CORRECCIÓN DE COLORES SEGÚN EL ESTADO REAL
+    // Aseguramos que detecte tanto si viene como número (0, 1, 2) o texto
+    let color = '#0891B2'; // Cyan por defecto (Pendiente / 0)
+    
+    // Si es completada (Generalmente 1 o "Completed")
+    if (apt.status === 2 || apt.status === 'Completed') {
+      color = '#10B981'; // Verde
+    } 
+    // Si es cancelada (Generalmente 2 o "Cancelled")
+    else if (apt.status === 3 || apt.status === 'Cancelled') {
+      color = '#EF4444'; // Rojo
+    }
 
     return {
       id: apt.id.toString(),
@@ -133,7 +136,6 @@ export default function InstructorPortalPage() {
 
   const classesToday = appointments.filter((a: any) => new Date(a.startTime).toDateString() === new Date().toDateString());
 
-  // Funciones de formateo para el modal
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   };
@@ -144,7 +146,6 @@ export default function InstructorPortalPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 font-sans pb-20 md:pb-12 selection:bg-cyan-500/30">
       
-      {/* HEADER */}
       <header className="bg-slate-900 border-b border-slate-800 shadow-md sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
@@ -162,7 +163,6 @@ export default function InstructorPortalPage() {
         </div>
       </header>
 
-      {/* ✨ NUEVO: PESTAÑAS DE NAVEGACIÓN */}
       <div className="max-w-7xl mx-auto px-4 md:px-6 pt-6">
         <div className="flex gap-2 border-b border-slate-800 pb-px">
           <button 
@@ -188,11 +188,8 @@ export default function InstructorPortalPage() {
         </div>
       </div>
 
-      {/* CONTENIDO DINÁMICO: HORARIO O NÓMINA */}
       {activeTab === 'schedule' ? (
         <main className="max-w-7xl mx-auto mt-6 px-4 md:px-6 flex flex-col lg:flex-row gap-6 animate-in fade-in duration-300">
-          
-          {/* COLUMNA PRINCIPAL: Calendario */}
           <div className="w-full lg:w-3/4 flex flex-col">
             <div className="mb-4">
               <h2 className="text-2xl font-extrabold text-white tracking-tight">Mi Horario</h2>
@@ -201,7 +198,6 @@ export default function InstructorPortalPage() {
             <CalendarWidget events={calendarEvents} onEventClick={handleEventClick} />
           </div>
 
-          {/* COLUMNA LATERAL: Resumen */}
           <div className="w-full lg:w-1/4 flex flex-col gap-4">
             <div className="bg-gradient-to-br from-cyan-900/50 to-blue-900/50 p-5 md:p-6 rounded-2xl shadow-xl border border-cyan-800/30">
               <h3 className="text-xs md:text-sm font-bold text-cyan-400 uppercase tracking-wider mb-2">Clases de Hoy</h3>
@@ -218,21 +214,17 @@ export default function InstructorPortalPage() {
               </div>
             </div>
           </div>
-
         </main>
       ) : (
         <main className="max-w-7xl mx-auto mt-6 px-4 md:px-6 animate-in fade-in duration-300">
-          {/* ✨ AQUÍ CARGAMOS LA NÓMINA DEL INSTRUCTOR */}
           <PayrollPanel teacherId={myUserId} />
         </main>
       )}
 
-      {/* MODAL DE DETALLES DE CLASE (SOLO LECTURA) */}
       {showModal && selectedAppointment && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
            <div className="bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
              
-             {/* Cabecera del Modal */}
              <div className="px-6 py-5 border-b border-slate-800 flex justify-between items-center bg-slate-900">
                <h3 className="text-lg font-extrabold text-white truncate pr-4">
                  {selectedAppointment.serviceName}
@@ -242,14 +234,13 @@ export default function InstructorPortalPage() {
              
              <div className="p-6">
                 
-                {/* Etiqueta de Estado */}
                 <div className="mb-6">
-                  {(selectedAppointment.status === 2 || selectedAppointment.status === 'Cancelled') && (
+                  {(selectedAppointment.status === 3 || selectedAppointment.status === 'Cancelled') && (
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold uppercase tracking-wider">
                       <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> Clase Cancelada
                     </div>
                   )}
-                  {(selectedAppointment.status === 1 || selectedAppointment.status === 'Completed') && (
+                  {(selectedAppointment.status === 2 || selectedAppointment.status === 'Completed') && (
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-wider">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Clase Completada
                     </div>
@@ -261,9 +252,7 @@ export default function InstructorPortalPage() {
                   )}
                 </div>
 
-                {/* Tarjeta de Información Detallada */}
                 <div className="bg-slate-800/40 rounded-2xl border border-slate-700/50 p-4 space-y-4 mb-6">
-                  
                   <div>
                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">👤 Alumno Asignado</p>
                     <p className="text-base font-bold text-white">{selectedAppointment.customerName}</p>
@@ -287,10 +276,8 @@ export default function InstructorPortalPage() {
                       <p className="text-sm font-bold text-cyan-400">{formatTime(selectedAppointment.endObj)}</p>
                     </div>
                   </div>
-
                 </div>
 
-                {/* Acciones */}
                 <div className="flex flex-col gap-3">
                   {(selectedAppointment.status === 0 || selectedAppointment.status === 'Pending') && (
                     <button 
