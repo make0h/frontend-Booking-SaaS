@@ -244,8 +244,8 @@ export default function DashboardPage() {
     const customer = customers.find(c => c.id === apt.customerId)?.name || 'Alumno';
 
     let color = '#0891B2'; // Cyan (Pendiente)
-    if (apt.status === 2 || apt.status === 'Cancelled') color = '#EF4444'; // Rojo (Cancelada)
-    if (apt.status === 1 || apt.status === 'Completed') color = '#10B981'; // Verde (Completada)
+    if (apt.status === 3 || apt.status === 'Cancelled') color = '#EF4444'; // Rojo (Cancelada)
+    if (apt.status === 2 || apt.status === 'Completed') color = '#10B981'; // Verde (Completada)
 
     return {
       id: apt.id.toString(),
@@ -458,7 +458,7 @@ export default function DashboardPage() {
              <form onSubmit={handleUpdateAppointment} className="p-6 space-y-4">
                 
                 {/* AVISO SI ESTÁ CANCELADA */}
-                {(selectedAppointment.status === 2 || selectedAppointment.status === 'Cancelled') && (
+                {(selectedAppointment.status === 3 || selectedAppointment.status === 'Cancelled') && (
                   <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/20 mb-4 text-center">
                     <p className="text-sm font-semibold text-red-400">Esta clase se encuentra cancelada.</p>
                   </div>
