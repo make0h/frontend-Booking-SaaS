@@ -84,8 +84,9 @@ export default function TeacherProfilePage() {
 
     // Colores por estado (Pendiente, Completada, Cancelada)
     let color = '#0891B2'; // Cyan-600 por defecto (Pendiente)
-    if (apt.status === 2 || apt.status === 'Cancelled') color = '#EF4444'; 
-    if (apt.status === 1 || apt.status === 'Completed') color = '#10B981'; 
+    if (apt.status === 1 || apt.status === 'Confirmed') color = '#da9516'; 
+    if (apt.status === 3 || apt.status === 'Cancelled') color = '#EF4444'; 
+    if (apt.status === 2 || apt.status === 'Completed') color = '#10B981'; 
 
     return {
       id: apt.id.toString(),
