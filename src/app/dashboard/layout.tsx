@@ -21,7 +21,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     // Cambiamos pb-20 a pb-24 para darle espacio a la nueva barra flotante
-    <div className="min-h-screen bg-transparent text-slate-200 flex font-sans selection:bg-cyan-500/30 pb-24 md:pb-0">
+    <div className="min-h-screen bg-transparent text-slate-200 flex font-sans selection:bg-cyan-500/30 pb-36 md:pb-0">
       
       {/* SIDEBAR OSCURO 3D (PC) */}
       <aside className="w-64 bg-slate-900/60 border-r-2 border-slate-800 hidden md:flex flex-col backdrop-blur-2xl shadow-[4px_0_24px_rgba(0,0,0,0.4)] z-20">
