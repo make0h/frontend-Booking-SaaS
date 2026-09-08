@@ -21,6 +21,7 @@ export default function DashboardPage() {
   const [teachers, setTeachers] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [packages, setPackages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -36,12 +37,17 @@ export default function DashboardPage() {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // ✨ NUEVO: Estados separados para fecha y hora (Carrito)
-  const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  // ✨ NUEVO CARRITO: Ahora usa objetos con ID para permitir horas duplicadas (Hermanos)
+  const [selectedDates, setSelectedDates] = useState<{id: string, value: string}[]>([]);
   const [tempDateOnly, setTempDateOnly] = useState('');
   const [tempTimeOnly, setTempTimeOnly] = useState('');
 
-  // ✨ NUEVO: Estados separados para fecha y hora (Reagendar)
+  const [bookingMode, setBookingMode] = useState<'single' | 'package'>('single');
+  const [selectedPackageId, setSelectedPackageId] = useState('');
+  
+  // ✨ NUEVO: Selector de días de la semana para paquetes (0=Dom, 1=Lun, 2=Mar...)
+  const [selectedWeekDays, setSelectedWeekDays] = useState<number[]>([]);
+
   const [editDateOnly, setEditDateOnly] = useState('');
   const [editTimeOnly, setEditTimeOnly] = useState('');
   const [editTeacher, setEditTeacher] = useState('');
@@ -56,16 +62,18 @@ export default function DashboardPage() {
 
   const fetchData = async () => {
     try {
-      const [aptRes, teachRes, servRes, custRes] = await Promise.all([
+      const [aptRes, teachRes, servRes, custRes, pkgRes] = await Promise.all([
         api.get('/appointments'),
         api.get('/users/employees'),
         api.get('/services'),
-        api.get('/users/customers')
+        api.get('/users/customers'),
+        api.get('/packages').catch(() => ({ data: [] }))
       ]);
       setAppointments(aptRes.data);
       setTeachers(teachRes.data);
       setServices(servRes.data);
       setCustomers(custRes.data);
+      setPackages(pkgRes.data);
     } catch (error: any) {
       if (error.response?.status === 401) {
         localStorage.removeItem('token');
@@ -78,11 +86,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchData();
-
     const handleClickOutside = (event: any) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowDropdown(false);
-      }
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setShowDropdown(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -91,24 +96,18 @@ export default function DashboardPage() {
   useEffect(() => {
     if (selectedAppointment) {
       setEditTeacher(selectedAppointment.employeeId?.toString() || '');
-      
-      // ✨ Extraemos la fecha y hora por separado para el modal de edición
       const date = new Date(selectedAppointment.startTime);
-      
       const yyyy = date.getFullYear();
       const mm = String(date.getMonth() + 1).padStart(2, '0');
       const dd = String(date.getDate()).padStart(2, '0');
       setEditDateOnly(`${yyyy}-${mm}-${dd}`);
-      
       const hh = String(date.getHours()).padStart(2, '0');
       const min = String(date.getMinutes()).padStart(2, '0');
       setEditTimeOnly(`${hh}:${min}`);
     }
   }, [selectedAppointment]);
 
-  const filteredCustomers = customers.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredCustomers = customers.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const selectCustomerFromSearch = (id: number, name: string) => {
     setSelectedCustomer(id.toString());
@@ -116,26 +115,70 @@ export default function DashboardPage() {
     setShowDropdown(false);
   };
 
-  // ✨ Lógica actualizada para añadir al carrito
+  // Toggle para seleccionar días de la semana
+  const toggleWeekDay = (dayIndex: number) => {
+    if (selectedWeekDays.includes(dayIndex)) {
+      setSelectedWeekDays(selectedWeekDays.filter(d => d !== dayIndex));
+    } else {
+      setSelectedWeekDays([...selectedWeekDays, dayIndex]);
+    }
+  };
+
   const addDateToCart = () => {
     if (!tempDateOnly || !tempTimeOnly) return setFormError("Ingresa la fecha y la hora exacta");
-    
-    // Unimos los dos strings (Ej: "2026-09-06" y "15:30" => "2026-09-06T15:30")
     const dateTimeString = `${tempDateOnly}T${tempTimeOnly}`;
     const selectedDateObj = new Date(dateTimeString);
-    
     if (selectedDateObj < new Date()) return setFormError("No puedes agendar clases en el pasado");
-    if (selectedDates.includes(dateTimeString)) return setFormError("Esa clase ya está en la lista");
     
     setFormError('');
-    setSelectedDates([...selectedDates, dateTimeString].sort());
-    
-    // Vaciamos solo la hora para permitir agendar rápido el mismo día
+    // Al generar un ID único, permitimos meter la misma fecha dos veces (para hermanos)
+    setSelectedDates([...selectedDates, { id: Math.random().toString(), value: dateTimeString }]);
     setTempTimeOnly('');
   };
 
-  const removeDate = (dateToRemove: string) => {
-    setSelectedDates(selectedDates.filter(d => d !== dateToRemove));
+  // ✨ EL NUEVO GENERADOR INTELIGENTE (100% Flexible)
+  const generatePackageDates = () => {
+    if (!tempDateOnly || !tempTimeOnly) return setFormError("Ingresa la fecha inicial y la hora");
+    if (!selectedPackageId) return setFormError("Selecciona un paquete primero");
+    if (selectedWeekDays.length === 0) return setFormError("Selecciona al menos un día de la semana (Ej: Martes y Jueves)");
+
+    const pkg = packages.find(p => p.id.toString() === selectedPackageId);
+    if (!pkg) return setFormError("Paquete inválido");
+
+    let currentDate = new Date(`${tempDateOnly}T00:00:00`); // Solo fecha inicial para empezar a contar
+    if (currentDate < new Date(new Date().setHours(0,0,0,0))) return setFormError("La fecha de inicio no puede estar en el pasado");
+
+    const newDates: {id: string, value: string}[] = [];
+    let classesAdded = 0;
+    let safetyLoop = 0; // Previene bucles infinitos
+
+    while (classesAdded < pkg.classCount && safetyLoop < 365) {
+      const currentDayOfWeek = currentDate.getDay(); // 0 es Domingo, 1 es Lunes...
+      
+      // Si el día actual coincide con uno de los días seleccionados
+      if (selectedWeekDays.includes(currentDayOfWeek)) {
+        const yyyy = currentDate.getFullYear();
+        const mm = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(currentDate.getDate()).padStart(2, '0');
+        
+        newDates.push({
+          id: Math.random().toString(),
+          value: `${yyyy}-${mm}-${dd}T${tempTimeOnly}`
+        });
+        classesAdded++;
+      }
+      // Avanzamos un día exacto
+      currentDate.setDate(currentDate.getDate() + 1);
+      safetyLoop++;
+    }
+
+    setFormError('');
+    setSelectedDates([...selectedDates, ...newDates]);
+    toast.success(`Se generaron ${newDates.length} fechas automáticamente.`);
+  };
+
+  const removeDate = (idToRemove: string) => {
+    setSelectedDates(selectedDates.filter(d => d.id !== idToRemove));
   };
 
   const handleCreateAppointment = async (e: React.FormEvent) => {
@@ -153,7 +196,8 @@ export default function DashboardPage() {
         customerId: parseInt(selectedCustomer),
         serviceId: parseInt(selectedService),
         employeeId: parseInt(selectedTeacher),
-        startTimes: selectedDates
+        // Extraemos solo el string de las fechas para enviarlo al backend
+        startTimes: selectedDates.map(d => d.value)
       });
       
       toast.success('¡Clases agendadas con éxito!', { id: loadingToast });
@@ -166,6 +210,9 @@ export default function DashboardPage() {
       setSelectedService('');
       setSelectedCustomer('');
       setSearchTerm('');
+      setBookingMode('single');
+      setSelectedPackageId('');
+      setSelectedWeekDays([]);
       
       fetchData(); 
     } catch (error: any) {
@@ -177,10 +224,8 @@ export default function DashboardPage() {
   const handleUpdateAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editDateOnly || !editTimeOnly) return toast.error("Ingresa la fecha y la hora válida");
-
     const fullDateTime = `${editDateOnly}T${editTimeOnly}`;
     const loadingToast = toast.loading('Guardando cambios...');
-    
     try {
       await api.put(`/appointments/${selectedAppointment.id}`, {
         id: selectedAppointment.id,
@@ -256,10 +301,10 @@ export default function DashboardPage() {
     const teacher = teachers.find(t => t.id === apt.employeeId)?.name || 'Profe';
     const customer = customers.find(c => c.id === apt.customerId)?.name || 'Alumno';
 
-    let color = '#0891B2'; // Cyan (Pendiente)
-    if (apt.status === 1 || apt.status === 'Confirmed') color = '#F59E0B'; // Ámbar/Naranja (Confirmada)
-    if (apt.status === 3 || apt.status === 'Cancelled') color = '#EF4444'; // Rojo (Cancelada)
-    if (apt.status === 2 || apt.status === 'Completed') color = '#10B981'; // Verde (Completada)
+    let color = '#0891B2'; 
+    if (apt.status === 1 || apt.status === 'Confirmed') color = '#F59E0B'; 
+    if (apt.status === 3 || apt.status === 'Cancelled') color = '#EF4444'; 
+    if (apt.status === 2 || apt.status === 'Completed') color = '#10B981'; 
 
     return {
       id: apt.id.toString(),
@@ -287,9 +332,13 @@ export default function DashboardPage() {
     selectedAppointment.status === 1 || selectedAppointment.status === 'Confirmed'
   );
 
+  const DAYS_OF_WEEK = [
+    { label: 'Lu', value: 1 }, { label: 'Ma', value: 2 }, { label: 'Mi', value: 3 },
+    { label: 'Ju', value: 4 }, { label: 'Vi', value: 5 }, { label: 'Sa', value: 6 }, { label: 'Do', value: 0 }
+  ];
+
   return (
     <div className="flex flex-col lg:flex-row gap-8">
-      
       <div className="w-full lg:w-3/4 flex flex-col">
         <div className="flex justify-between items-end mb-6">
           <div>
@@ -305,7 +354,6 @@ export default function DashboardPage() {
             <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#10B981] rounded-full"></span> IMPARTIDA</span>
             <span className="flex items-center gap-1.5"><span className="w-3 h-3 bg-[#EF4444] rounded-full"></span> CANCELADA</span>
           </div>
-
           <CalendarWidget events={calendarEvents} onEventClick={handleEventClick} />
         </div>
       </div>
@@ -345,6 +393,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* ============================================== */}
+      {/* MODAL PRINCIPAL DE AGENDAMIENTO                */}
+      {/* ============================================== */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-slate-900 rounded-2xl shadow-2xl border border-slate-800 w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
@@ -362,7 +413,7 @@ export default function DashboardPage() {
             <form onSubmit={handleCreateAppointment} className="p-6 space-y-5">
               
               <div className="relative" ref={dropdownRef}>
-                <label className="block text-sm font-semibold text-slate-300 mb-1">Buscar Alumno</label>
+                <label className="block text-sm font-semibold text-slate-300 mb-1">Buscar Alumno (o Familia)</label>
                 <input 
                   type="text" 
                   placeholder="Escribe el nombre..." 
@@ -403,7 +454,7 @@ export default function DashboardPage() {
                   <label className="block text-sm font-semibold text-slate-300 mb-1">Servicio / Nivel</label>
                   <select value={selectedService} onChange={(e) => setSelectedService(e.target.value)} className="w-full border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white outline-none" required>
                     <option value="" disabled>Seleccionar...</option>
-                    {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    {services.map(s => <option key={s.id} value={s.id}>{s.name} ({s.durationMinutes}m)</option>)}
                   </select>
                 </div>
                 <div>
@@ -414,10 +465,64 @@ export default function DashboardPage() {
                   </select>
                 </div>
               </div>
+
+              {/* SELECTOR DE MODO DE AGENDAMIENTO */}
+              <div className="flex bg-slate-950 p-1.5 rounded-xl border border-slate-800 mt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setBookingMode('single')} 
+                  className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${bookingMode === 'single' ? 'bg-cyan-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-300'}`}
+                >
+                  Clases Sueltas
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setBookingMode('package')} 
+                  className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${bookingMode === 'package' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-300'}`}
+                >
+                  Paquete Mensual
+                </button>
+              </div>
+
+              {/* MODO PAQUETE */}
+              {bookingMode === 'package' && (
+                <div className="bg-emerald-950/20 border border-emerald-900/50 p-4 rounded-xl mb-4 animate-in fade-in slide-in-from-top-2">
+                  <label className="block text-sm font-semibold text-emerald-400 mb-2">1. Selecciona el Paquete</label>
+                  <select 
+                    value={selectedPackageId} 
+                    onChange={(e) => setSelectedPackageId(e.target.value)} 
+                    className="w-full border border-emerald-800/50 rounded-xl p-2.5 focus:ring-2 focus:ring-emerald-500 bg-slate-900 text-white outline-none mb-4"
+                  >
+                    <option value="">-- Elige un Paquete --</option>
+                    {packages.map(p => (
+                      <option key={p.id} value={p.id}>{p.name} ({p.classCount} clases)</option>
+                    ))}
+                  </select>
+
+                  <label className="block text-sm font-semibold text-emerald-400 mb-2">2. Días de la semana (Ej. 2 veces por semana)</label>
+                  <div className="flex gap-1.5 mb-2 justify-between">
+                    {DAYS_OF_WEEK.map(day => (
+                      <button
+                        key={day.value}
+                        type="button"
+                        onClick={() => toggleWeekDay(day.value)}
+                        className={`w-10 h-10 rounded-full font-bold text-xs flex items-center justify-center transition-all ${
+                          selectedWeekDays.includes(day.value) ? 'bg-emerald-500 text-slate-900 shadow-md shadow-emerald-500/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                        }`}
+                      >
+                        {day.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-slate-400">El sistema buscará estos días automáticamente a partir de la fecha de inicio.</p>
+                </div>
+              )}
               
-              {/* ✨ NUEVO: Interfaz dividida para el carrito de fechas */}
+              {/* CARRITO DE FECHAS */}
               <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                <label className="block text-sm font-semibold text-cyan-400 mb-2">Añadir Fecha y Hora</label>
+                <label className="block text-sm font-semibold text-cyan-400 mb-2">
+                  {bookingMode === 'single' ? 'Añadir Fecha y Hora al Carrito' : '3. Fecha de Inicio y Hora'}
+                </label>
                 <div className="flex gap-2 mb-3">
                   <input 
                     type="date" 
@@ -431,27 +536,28 @@ export default function DashboardPage() {
                     onChange={(e) => setTempTimeOnly(e.target.value)} 
                     className="w-[35%] border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white outline-none [color-scheme:dark]"
                   />
-                  <button 
-                    type="button" 
-                    onClick={addDateToCart}
-                    className="w-[20%] bg-slate-700 text-white font-bold px-3 rounded-xl hover:bg-cyan-600 transition-colors text-sm"
-                  >
-                    Añadir
-                  </button>
+                  
+                  {bookingMode === 'single' ? (
+                    <button type="button" onClick={addDateToCart} className="w-[20%] bg-slate-700 text-white font-bold px-3 rounded-xl hover:bg-cyan-600 transition-colors text-sm">
+                      Añadir
+                    </button>
+                  ) : (
+                    <button type="button" onClick={generatePackageDates} className="w-[20%] bg-emerald-600 text-white font-bold px-3 rounded-xl hover:bg-emerald-500 transition-colors text-xs text-center leading-tight shadow-md">
+                      Generar
+                    </button>
+                  )}
                 </div>
 
                 <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
                   {selectedDates.length === 0 ? (
-                    <p className="text-slate-500 text-xs text-center py-2 italic">Añade horas al paquete de clases.</p>
+                    <p className="text-slate-500 text-xs text-center py-2 italic">El carrito de clases está vacío. (Puedes añadir la misma hora 2 veces para hermanos).</p>
                   ) : (
-                    selectedDates.map((date, index) => (
-                      <div key={index} className="flex justify-between items-center bg-slate-800 p-2.5 rounded-lg border border-slate-700/50">
+                    selectedDates.map((item) => (
+                      <div key={item.id} className="flex justify-between items-center bg-slate-800 p-2.5 rounded-lg border border-slate-700/50">
                         <span className="text-slate-200 text-sm">
-                          {new Date(date).toLocaleString('es-CO', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          {new Date(item.value).toLocaleString('es-CO', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </span>
-                        <button type="button" onClick={() => removeDate(date)} className="text-red-400 hover:text-red-300 px-2 font-bold">
-                          ✖
-                        </button>
+                        <button type="button" onClick={() => removeDate(item.id)} className="text-red-400 hover:text-red-300 px-2 font-bold">✖</button>
                       </div>
                     ))
                   )}
@@ -469,6 +575,7 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* MODAL DE EDICIÓN */}
       {showEditModal && selectedAppointment && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
            <div className="bg-slate-900 rounded-2xl shadow-2xl border border-slate-800 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
@@ -514,63 +621,41 @@ export default function DashboardPage() {
                  </select>
                </div>
                
-               {/* ✨ NUEVO: Interfaz dividida para la edición */}
                <div className="flex gap-4">
                  <div className="w-1/2">
                    <label className="block text-sm font-semibold text-slate-300 mb-1">Fecha</label>
-                   <input 
-                     type="date" 
-                     value={editDateOnly} 
-                     onChange={(e) => setEditDateOnly(e.target.value)} 
-                     disabled={!canEdit}
-                     className="w-full border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white disabled:opacity-50 outline-none [color-scheme:dark]" 
-                   />
+                   <input type="date" value={editDateOnly} onChange={(e) => setEditDateOnly(e.target.value)} disabled={!canEdit} className="w-full border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white disabled:opacity-50 outline-none [color-scheme:dark]" />
                  </div>
                  <div className="w-1/2">
                    <label className="block text-sm font-semibold text-slate-300 mb-1">Hora</label>
-                   <input 
-                     type="time" 
-                     value={editTimeOnly} 
-                     onChange={(e) => setEditTimeOnly(e.target.value)} 
-                     disabled={!canEdit}
-                     className="w-full border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white disabled:opacity-50 outline-none [color-scheme:dark]" 
-                   />
+                   <input type="time" value={editTimeOnly} onChange={(e) => setEditTimeOnly(e.target.value)} disabled={!canEdit} className="w-full border border-slate-700 rounded-xl p-2.5 focus:ring-2 focus:ring-cyan-500 bg-slate-800 text-white disabled:opacity-50 outline-none [color-scheme:dark]" />
                  </div>
                </div>
 
                <div className="pt-6 flex flex-col gap-3">
-                 
                  {canEdit && (
                    <>
                      <button type="button" onClick={handleCompleteAppointment} className="w-full px-4 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-500 shadow-md shadow-emerald-900/20 transition-colors flex items-center justify-center gap-2">
                        ✅ Marcar clase como Impartida
                      </button>
-
                      <button type="submit" className="w-full px-4 py-3 bg-cyan-600 text-white font-semibold rounded-xl hover:bg-cyan-500 shadow-md transition-colors">
                        Reagendar / Guardar Cambios
                      </button>
-
                      <button type="button" onClick={handleCancelAppointment} className="w-full px-4 py-3 bg-red-500/10 text-red-400 border border-red-500/20 font-semibold rounded-xl hover:bg-red-500/20 transition-colors">
                        🚫 Cancelar Clase Definitivamente
                      </button>
                    </>
                  )}
-
                  {!canEdit && (
-                    <button type="button" onClick={() => setShowEditModal(false)} className="w-full px-4 py-3 border border-slate-700 text-slate-300 font-semibold rounded-xl hover:bg-slate-800 transition-colors">
-                     Cerrar ventana
-                   </button>
+                    <button type="button" onClick={() => setShowEditModal(false)} className="w-full px-4 py-3 border border-slate-700 text-slate-300 font-semibold rounded-xl hover:bg-slate-800 transition-colors">Cerrar ventana</button>
                  )}
-
                  <div className="border-t border-slate-800 mt-2 pt-4">
                    <button type="button" onClick={handleDeleteAppointment} className="w-full px-4 py-3 bg-red-900/30 text-red-500 border border-red-900/50 font-bold rounded-xl hover:bg-red-900/60 transition-colors flex items-center justify-center gap-2">
                      🗑️ Eliminar Error (Devuelve Crédito)
                    </button>
                  </div>
-
                </div>
              </form>
-
            </div>
         </div>
       )}
