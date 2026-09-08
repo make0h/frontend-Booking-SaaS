@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
+import ClayButton from '@/components/ClayButton'; 
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function ServicesPage() {
   const [activeTab, setActiveTab] = useState<'classes' | 'packages'>('classes');
@@ -38,7 +40,7 @@ export default function ServicesPage() {
     try {
       const [servicesRes, packagesRes] = await Promise.all([
         api.get('/services'),
-        api.get('/packages').catch(() => ({ data: [] })) // Fallback temporal si no existe el endpoint aún
+        api.get('/packages').catch(() => ({ data: [] }))
       ]);
       setServices(servicesRes.data);
       setPackages(packagesRes.data);
@@ -53,49 +55,23 @@ export default function ServicesPage() {
     fetchData();
   }, []);
 
-  // ================= LÓGICA DE CLASES (SERVICES) =================
+  // ================= LÓGICA DE CLASES =================
   const resetServiceForm = () => {
-    setName('');
-    setDuration(45);
-    setPrice(0);
-    setInstructorPayout(0);
-    setMaxCapacity(1);
-    setEditingServiceId(null);
+    setName(''); setDuration(45); setPrice(0); setInstructorPayout(0); setMaxCapacity(1); setEditingServiceId(null);
   };
 
-  const openCreateServiceModal = () => {
-    resetServiceForm();
-    setServiceModalMode('create');
-    setShowServiceModal(true);
-  };
+  const openCreateServiceModal = () => { resetServiceForm(); setServiceModalMode('create'); setShowServiceModal(true); };
 
   const openEditServiceModal = (service: any) => {
-    setEditingServiceId(service.id);
-    setName(service.name);
-    setDuration(service.durationMinutes);
-    setPrice(service.price || 0);
-    setInstructorPayout(service.instructorPayout || 0);
-    setMaxCapacity(service.maxCapacity || 1);
-    
-    setServiceModalMode('edit');
-    setShowServiceModal(true);
+    setEditingServiceId(service.id); setName(service.name); setDuration(service.durationMinutes);
+    setPrice(service.price || 0); setInstructorPayout(service.instructorPayout || 0); setMaxCapacity(service.maxCapacity || 1);
+    setServiceModalMode('edit'); setShowServiceModal(true);
   };
 
   const handleServiceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Añadimos el ID dinámicamente si estamos en modo edición para que C# no lo rechace
-    const payload = { 
-      id: serviceModalMode === 'edit' ? editingServiceId : 0,
-      name, 
-      durationMinutes: duration, 
-      price, 
-      instructorPayout, 
-      maxCapacity, 
-      businessId: 1 
-    };
-    
+    const payload = { id: serviceModalMode === 'edit' ? editingServiceId : 0, name, durationMinutes: duration, price, instructorPayout, maxCapacity, businessId: 1 };
     const loadingToast = toast.loading(serviceModalMode === 'create' ? 'Creando clase...' : 'Guardando cambios...');
-
     try {
       if (serviceModalMode === 'create') {
         await api.post('/services', payload);
@@ -104,68 +80,37 @@ export default function ServicesPage() {
         await api.put(`/services/${editingServiceId}`, payload);
         toast.success('Clase actualizada', { id: loadingToast });
       }
-      setShowServiceModal(false);
-      fetchData();
+      setShowServiceModal(false); fetchData();
     } catch (error: any) {
-      const errorMsg = typeof error.response?.data === 'string' ? error.response.data : 'Ocurrió un error inesperado';
-      toast.error(errorMsg, { id: loadingToast });
+      toast.error(typeof error.response?.data === 'string' ? error.response.data : 'Error inesperado', { id: loadingToast });
     }
   };
 
   const handleDeleteService = async (id: number) => {
     if (window.confirm('¿Seguro que deseas eliminar esta clase?')) {
       const loadingToast = toast.loading('Eliminando...');
-      try {
-        await api.delete(`/services/${id}`);
-        toast.success('Servicio eliminado', { id: loadingToast });
-        fetchData();
-      } catch (error: any) {
-        toast.error('No se pudo eliminar la clase', { id: loadingToast });
-      }
+      try { await api.delete(`/services/${id}`); toast.success('Servicio eliminado', { id: loadingToast }); fetchData();
+      } catch (error: any) { toast.error('No se pudo eliminar la clase', { id: loadingToast }); }
     }
   };
 
   // ================= LÓGICA DE PAQUETES =================
   const resetPackageForm = () => {
-    setPackageName('');
-    setPackageDescription('');
-    setClassCount(4);
-    setPricePerClass(0);
-    setEditingPackageId(null);
+    setPackageName(''); setPackageDescription(''); setClassCount(4); setPricePerClass(0); setEditingPackageId(null);
   };
 
-  const openCreatePackageModal = () => {
-    resetPackageForm();
-    setPackageModalMode('create');
-    setShowPackageModal(true);
-  };
+  const openCreatePackageModal = () => { resetPackageForm(); setPackageModalMode('create'); setShowPackageModal(true); };
 
   const openEditPackageModal = (pkg: any) => {
-    setEditingPackageId(pkg.id);
-    setPackageName(pkg.name);
-    setPackageDescription(pkg.description || '');
-    setClassCount(pkg.classCount);
-    setPricePerClass(pkg.pricePerClass);
-    
-    setPackageModalMode('edit');
-    setShowPackageModal(true);
+    setEditingPackageId(pkg.id); setPackageName(pkg.name); setPackageDescription(pkg.description || '');
+    setClassCount(pkg.classCount); setPricePerClass(pkg.pricePerClass);
+    setPackageModalMode('edit'); setShowPackageModal(true);
   };
 
   const handlePackageSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Añadimos el ID y calculamos el totalPrice antes de enviarlo a C#
-    const payload = { 
-      id: packageModalMode === 'edit' ? editingPackageId : 0,
-      name: packageName, 
-      description: packageDescription, 
-      classCount, 
-      pricePerClass,
-      totalPrice: classCount * pricePerClass, // C# necesita este dato para que el modelo sea válido
-      businessId: 1 
-    };
-    
+    const payload = { id: packageModalMode === 'edit' ? editingPackageId : 0, name: packageName, description: packageDescription, classCount, pricePerClass, totalPrice: classCount * pricePerClass, businessId: 1 };
     const loadingToast = toast.loading(packageModalMode === 'create' ? 'Creando paquete...' : 'Guardando cambios...');
-
     try {
       if (packageModalMode === 'create') {
         await api.post('/packages', payload);
@@ -174,53 +119,46 @@ export default function ServicesPage() {
         await api.put(`/packages/${editingPackageId}`, payload);
         toast.success('Paquete actualizado', { id: loadingToast });
       }
-      setShowPackageModal(false);
-      fetchData();
+      setShowPackageModal(false); fetchData();
     } catch (error: any) {
-      const errorMsg = typeof error.response?.data === 'string' ? error.response.data : 'Ocurrió un error inesperado';
-      toast.error(errorMsg, { id: loadingToast });
+      toast.error(typeof error.response?.data === 'string' ? error.response.data : 'Error inesperado', { id: loadingToast });
     }
   };
 
   const handleDeletePackage = async (id: number) => {
-    if (window.confirm('¿Seguro que deseas eliminar este paquete mensual?')) {
+    if (window.confirm('¿Seguro que deseas eliminar este paquete?')) {
       const loadingToast = toast.loading('Eliminando paquete...');
-      try {
-        await api.delete(`/packages/${id}`);
-        toast.success('Paquete eliminado', { id: loadingToast });
-        fetchData();
-      } catch (error: any) {
-        toast.error('No se pudo eliminar el paquete', { id: loadingToast });
-      }
+      try { await api.delete(`/packages/${id}`); toast.success('Paquete eliminado', { id: loadingToast }); fetchData();
+      } catch (error: any) { toast.error('No se pudo eliminar el paquete', { id: loadingToast }); }
     }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-600"></div>
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-cyan-400"></div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8 max-w-7xl mx-auto pb-10">
       
       {/* HEADER Y PESTAÑAS */}
       <div>
-        <h2 className="text-3xl font-extrabold text-white tracking-tight">Catálogo y Tarifas</h2>
-        <p className="text-slate-400 mt-1 mb-6">Configura las clases individuales y los paquetes mensuales que ofreces a tus alumnos.</p>
+        <h2 className="text-4xl font-black text-white tracking-tight">Catálogo y Tarifas</h2>
+        <p className="text-slate-400 mt-2 mb-8 font-medium text-lg">Configura las clases individuales y los paquetes mensuales de La Nutria.</p>
         
-        <div className="flex gap-4 border-b border-slate-800 pb-px">
+        <div className="flex gap-6 border-b-2 border-slate-800 pb-px">
           <button 
             onClick={() => setActiveTab('classes')}
-            className={`pb-3 px-2 font-bold text-lg transition-colors border-b-2 ${activeTab === 'classes' ? 'text-cyan-400 border-cyan-500' : 'text-slate-500 border-transparent hover:text-slate-300'}`}
+            className={`pb-4 px-2 font-black text-lg transition-colors border-b-4 ${activeTab === 'classes' ? 'text-cyan-400 border-cyan-400' : 'text-slate-500 border-transparent hover:text-slate-300'}`}
           >
             Clases y Servicios
           </button>
           <button 
             onClick={() => setActiveTab('packages')}
-            className={`pb-3 px-2 font-bold text-lg transition-colors border-b-2 ${activeTab === 'packages' ? 'text-cyan-400 border-cyan-500' : 'text-slate-500 border-transparent hover:text-slate-300'}`}
+            className={`pb-4 px-2 font-black text-lg transition-colors border-b-4 ${activeTab === 'packages' ? 'text-indigo-400 border-indigo-400' : 'text-slate-500 border-transparent hover:text-slate-300'}`}
           >
             Paquetes Mensuales
           </button>
@@ -229,213 +167,200 @@ export default function ServicesPage() {
 
       {/* ================= VISTA DE CLASES ================= */}
       {activeTab === 'classes' && (
-        <div className="animate-in fade-in duration-300">
-          <div className="flex justify-end mb-4">
-            <button 
-              onClick={openCreateServiceModal}
-              className="bg-cyan-600 text-white font-bold px-5 py-2.5 rounded-xl shadow-lg hover:bg-cyan-500 transition active:scale-95 flex gap-2 items-center"
-            >
-              <span className="text-lg leading-none">+</span> Nueva Clase
-            </button>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-4">
+          <div className="flex justify-end mb-2">
+            <ClayButton onClick={openCreateServiceModal} colorClass="bg-cyan-500 text-white">
+              <span className="text-2xl leading-none">+</span> Nueva Clase
+            </ClayButton>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {services.map((service) => (
-              <div key={service.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden group flex flex-col justify-between">
-                
-                <div className="absolute top-4 right-4 flex gap-2 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => openEditServiceModal(service)} className="bg-slate-800 hover:bg-cyan-900/50 text-cyan-400 p-2 rounded-lg border border-slate-700 transition" title="Editar">✏️</button>
-                  <button onClick={() => handleDeleteService(service.id)} className="bg-slate-800 hover:bg-red-900/50 text-red-400 p-2 rounded-lg border border-slate-700 transition" title="Eliminar">🗑️</button>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+            {services.map((service, index) => (
+              <motion.div 
+                key={service.id} 
+                initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: index * 0.05, type: "spring" }}
+                className="bg-slate-800 rounded-[2rem] p-6 shadow-clay flex flex-col justify-between relative group border-2 border-slate-700/50"
+              >
+                <div className="absolute top-6 right-6 flex gap-3 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
+                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openEditServiceModal(service)} className="bg-slate-700 text-amber-400 w-12 h-12 rounded-2xl shadow-clay flex items-center justify-center text-xl">✏️</motion.button>
+                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleDeleteService(service.id)} className="bg-slate-700 text-red-400 w-12 h-12 rounded-2xl shadow-clay flex items-center justify-center text-xl">🗑️</motion.button>
                 </div>
 
-                <h3 className="text-xl font-bold text-white mb-5 pr-16">{service.name}</h3>
+                <div className="w-20 h-20 rounded-3xl bg-slate-900 shadow-clay flex items-center justify-center text-4xl mb-6 text-cyan-400">🏊‍♂️</div>
+                <h3 className="text-2xl font-black text-white mb-6 pr-20">{service.name}</h3>
                 
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800/50">
-                    <span className="text-slate-400 text-xs font-medium">⏱️ Duración</span>
-                    <span className="text-white font-bold text-sm">{service.durationMinutes} min</span>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center bg-slate-900/60 p-4 rounded-2xl shadow-inner border border-slate-700/30">
+                    <span className="text-slate-400 font-bold uppercase tracking-wider text-xs">⏱️ Duración</span>
+                    <span className="text-white font-black">{service.durationMinutes} min</span>
                   </div>
-                  <div className="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800/50">
-                    <span className="text-slate-400 text-xs font-medium">👥 Aforo Máximo</span>
-                    <span className="text-cyan-400 font-bold text-sm">{service.maxCapacity} niños</span>
+                  <div className="flex justify-between items-center bg-slate-900/60 p-4 rounded-2xl shadow-inner border border-slate-700/30">
+                    <span className="text-slate-400 font-bold uppercase tracking-wider text-xs">👥 Aforo</span>
+                    <span className="text-cyan-400 font-black">{service.maxCapacity} niños</span>
                   </div>
-                  <div className="flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800/50">
-                    <span className="text-slate-400 text-xs font-medium">💰 Cobro / Pago</span>
-                    <div className="text-right">
-                      <span className="text-emerald-400 font-bold text-xs block">${service.price?.toLocaleString('es-CO')}</span>
-                      <span className="text-cyan-400 font-semibold text-[11px] block">Profe: ${service.instructorPayout?.toLocaleString('es-CO')}</span>
-                    </div>
+                  <div className="flex justify-between items-center bg-slate-900/60 p-4 rounded-2xl shadow-inner border border-slate-700/30">
+                    <span className="text-slate-400 font-bold uppercase tracking-wider text-xs">💰 Precio</span>
+                    <span className="text-emerald-400 font-black text-lg">${service.price?.toLocaleString('es-CO')}</span>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))}
+            
             {services.length === 0 && (
-              <div className="col-span-full bg-slate-900 border border-slate-800 rounded-2xl p-10 text-center shadow-xl">
-                <p className="text-slate-400 mb-2">No tienes ninguna clase configurada todavía.</p>
+              <div className="col-span-full bg-slate-800 rounded-[3rem] p-16 text-center shadow-clay border-2 border-dashed border-slate-600">
+                <p className="text-slate-400 font-bold text-xl">No tienes ninguna clase configurada todavía 🦦</p>
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* ================= VISTA DE PAQUETES ================= */}
       {activeTab === 'packages' && (
-        <div className="animate-in fade-in duration-300">
-          <div className="flex justify-end mb-4">
-            <button 
-              onClick={openCreatePackageModal}
-              className="bg-indigo-600 text-white font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-900/50 hover:bg-indigo-500 transition active:scale-95 flex gap-2 items-center"
-            >
-              <span className="text-lg leading-none">+</span> Nuevo Paquete
-            </button>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-4">
+          <div className="flex justify-end mb-2">
+            <ClayButton onClick={openCreatePackageModal} colorClass="bg-indigo-500 text-white">
+              <span className="text-2xl leading-none">+</span> Nuevo Paquete
+            </ClayButton>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {packages.map((pkg) => (
-              <div key={pkg.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
-                
-                <div className="absolute top-4 right-4 flex gap-2 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => openEditPackageModal(pkg)} className="bg-slate-800 hover:bg-indigo-900/50 text-indigo-400 p-2 rounded-lg border border-slate-700 transition" title="Editar">✏️</button>
-                  <button onClick={() => handleDeletePackage(pkg.id)} className="bg-slate-800 hover:bg-red-900/50 text-red-400 p-2 rounded-lg border border-slate-700 transition" title="Eliminar">🗑️</button>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {packages.map((pkg, index) => (
+              <motion.div 
+                key={pkg.id} 
+                initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: index * 0.05, type: "spring" }}
+                className="bg-slate-800 rounded-[2rem] p-6 shadow-clay flex flex-col justify-between relative group border-2 border-slate-700/50"
+              >
+                <div className="absolute top-6 right-6 flex gap-3 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
+                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openEditPackageModal(pkg)} className="bg-slate-700 text-amber-400 w-12 h-12 rounded-2xl shadow-clay flex items-center justify-center text-xl">✏️</motion.button>
+                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleDeletePackage(pkg.id)} className="bg-slate-700 text-red-400 w-12 h-12 rounded-2xl shadow-clay flex items-center justify-center text-xl">🗑️</motion.button>
                 </div>
 
-                <div className="w-12 h-12 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-xl flex items-center justify-center text-2xl mb-4">
-                  🎟️
-                </div>
+                <div className="w-20 h-20 rounded-3xl bg-slate-900 shadow-clay flex items-center justify-center text-4xl mb-6 text-indigo-400">🎟️</div>
+                <h3 className="text-2xl font-black text-white mb-2 pr-20">{pkg.name}</h3>
+                <p className="text-slate-400 font-medium mb-6 min-h-[48px]">{pkg.description || 'Sin descripción'}</p>
                 
-                <h3 className="text-xl font-bold text-white mb-1 pr-16">{pkg.name}</h3>
-                <p className="text-sm text-slate-400 mb-5 min-h-[40px]">{pkg.description || 'Sin descripción'}</p>
-                
-                <div className="space-y-3 pt-4 border-t border-slate-800">
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-400 text-sm font-medium">Clases Incluidas:</span>
-                    <span className="bg-indigo-500/20 text-indigo-300 font-bold px-3 py-1 rounded-lg border border-indigo-500/30">
-                      {pkg.classCount} Clases
-                    </span>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center bg-slate-900/60 p-4 rounded-2xl shadow-inner border border-slate-700/30">
+                    <span className="text-slate-400 font-bold text-sm">Clases Incluidas:</span>
+                    <span className="text-indigo-300 font-black bg-indigo-900/50 px-3 py-1 rounded-xl shadow-inner border border-indigo-500/20">{pkg.classCount} Clases</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-400 text-sm font-medium">Precio por clase:</span>
-                    <span className="text-slate-300 font-bold">${pkg.pricePerClass?.toLocaleString('es-CO')}</span>
+                  <div className="flex justify-between items-center bg-slate-900/60 p-4 rounded-2xl shadow-inner border border-slate-700/30">
+                    <span className="text-slate-400 font-bold text-sm">Precio por clase:</span>
+                    <span className="text-slate-200 font-black">${pkg.pricePerClass?.toLocaleString('es-CO')}</span>
                   </div>
-                  <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-800/50">
-                    <span className="text-slate-300 text-sm font-bold">PRECIO TOTAL:</span>
-                    <span className="text-emerald-400 font-black text-lg">${(pkg.classCount * pkg.pricePerClass).toLocaleString('es-CO')}</span>
+                  <div className="flex justify-between items-center bg-indigo-900/20 p-5 rounded-2xl shadow-inner mt-2 border border-indigo-500/10">
+                    <span className="text-indigo-400 font-black">PRECIO TOTAL:</span>
+                    <span className="text-indigo-300 font-black text-xl">${(pkg.classCount * pkg.pricePerClass).toLocaleString('es-CO')}</span>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))}
             {packages.length === 0 && (
-              <div className="col-span-full bg-slate-900 border border-slate-800 rounded-2xl p-10 text-center shadow-xl">
-                <p className="text-slate-400 mb-2">Aún no has creado paquetes mensuales.</p>
+              <div className="col-span-full bg-slate-800 rounded-[3rem] p-16 text-center shadow-clay border-2 border-dashed border-slate-600">
+                <p className="text-slate-400 font-bold text-xl">Aún no has creado paquetes mensuales.</p>
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* ================= MODAL DE CLASES ================= */}
-      {showServiceModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 rounded-2xl border border-slate-800 w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
-              <h3 className="text-lg font-bold text-white">
-                {serviceModalMode === 'create' ? 'Configurar Nueva Clase' : 'Editar Clase'}
-              </h3>
-              <button onClick={() => setShowServiceModal(false)} className="text-slate-500 hover:text-white font-bold text-xl">&times;</button>
-            </div>
-            
-            <form onSubmit={handleServiceSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-1">Nombre de la Clase</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-3 outline-none focus:ring-2 focus:ring-cyan-500" required />
+      <AnimatePresence>
+        {showServiceModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-800 rounded-[2.5rem] shadow-clay w-full max-w-lg overflow-hidden border-2 border-slate-700">
+              <div className="px-8 py-6 flex justify-between items-center">
+                <h3 className="text-2xl font-black text-white">{serviceModalMode === 'create' ? 'Configurar Nueva Clase' : 'Editar Clase'}</h3>
+                <button onClick={() => setShowServiceModal(false)} className="bg-slate-700 w-10 h-10 rounded-full shadow-clay text-slate-300 font-bold text-xl hover:text-red-400 transition-colors">&times;</button>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
+              
+              <form onSubmit={handleServiceSubmit} className="px-8 pb-8 space-y-5">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-300 mb-1">Duración (Minutos)</label>
-                  <input type="number" min="15" value={duration} onChange={(e) => setDuration(Number(e.target.value))} className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-3 outline-none focus:ring-2 focus:ring-cyan-500" required />
+                  <label className="block text-sm font-bold text-slate-300 mb-2 pl-2">Nombre de la Clase</label>
+                  <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-slate-900 shadow-inner text-white font-bold rounded-2xl p-4 outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-700 transition-all" required />
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-300 mb-1">Aforo Máximo</label>
-                  <input type="number" min="1" value={maxCapacity} onChange={(e) => setMaxCapacity(Number(e.target.value))} className="w-full bg-slate-800 border border-slate-700 text-cyan-400 font-bold rounded-xl p-3 outline-none focus:ring-2 focus:ring-cyan-500" required />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-300 mb-1">Precio Cliente</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
-                    <input type="number" min="0" value={price} onChange={(e) => setPrice(Number(e.target.value))} className="w-full bg-slate-800 border border-slate-700 text-emerald-400 font-bold rounded-xl p-3 pl-7 outline-none focus:ring-2 focus:ring-cyan-500" required />
+                <div className="grid grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-300 mb-2 pl-2">Duración (Min)</label>
+                    <input type="number" min="15" value={duration} onChange={(e) => setDuration(Number(e.target.value))} className="w-full bg-slate-900 shadow-inner text-white font-bold rounded-2xl p-4 outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-700 transition-all" required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-300 mb-2 pl-2">Aforo Máximo</label>
+                    <input type="number" min="1" value={maxCapacity} onChange={(e) => setMaxCapacity(Number(e.target.value))} className="w-full bg-slate-900 shadow-inner text-cyan-400 font-black rounded-2xl p-4 outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-700 transition-all" required />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-300 mb-1">Pago Instructor</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
-                    <input type="number" min="0" value={instructorPayout} onChange={(e) => setInstructorPayout(Number(e.target.value))} className="w-full bg-slate-800 border border-slate-700 text-cyan-400 font-bold rounded-xl p-3 pl-7 outline-none focus:ring-2 focus:ring-cyan-500" required />
+                <div className="grid grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-300 mb-2 pl-2">Precio Cliente</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-black">$</span>
+                      <input type="number" min="0" value={price} onChange={(e) => setPrice(Number(e.target.value))} className="w-full bg-slate-900 shadow-inner text-white font-black rounded-2xl p-4 pl-8 outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-700 transition-all" required />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-300 mb-2 pl-2">Pago Instructor</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-black">$</span>
+                      <input type="number" min="0" value={instructorPayout} onChange={(e) => setInstructorPayout(Number(e.target.value))} className="w-full bg-slate-900 shadow-inner text-white font-black rounded-2xl p-4 pl-8 outline-none focus:ring-2 focus:ring-cyan-500 border border-slate-700 transition-all" required />
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="pt-4 flex gap-3">
-                <button type="button" onClick={() => setShowServiceModal(false)} className="flex-1 py-3 border border-slate-700 text-slate-300 font-semibold rounded-xl hover:bg-slate-800 transition">Cancelar</button>
-                <button type="submit" className="flex-1 py-3 bg-cyan-600 text-white font-semibold rounded-xl hover:bg-cyan-500 shadow-md transition">Guardar</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                <div className="pt-6 flex gap-4">
+                  <ClayButton type="button" onClick={() => setShowServiceModal(false)} colorClass="bg-slate-700 text-slate-300 w-full" className="flex-1">Cancelar</ClayButton>
+                  <ClayButton type="submit" colorClass="bg-cyan-600 text-white w-full" className="flex-1">Guardar</ClayButton>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ================= MODAL DE PAQUETES ================= */}
-      {showPackageModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 rounded-2xl border border-slate-800 w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
-              <h3 className="text-lg font-bold text-white">
-                {packageModalMode === 'create' ? 'Crear Paquete Mensual' : 'Editar Paquete'}
-              </h3>
-              <button onClick={() => setShowPackageModal(false)} className="text-slate-500 hover:text-white font-bold text-xl">&times;</button>
-            </div>
-            
-            <form onSubmit={handlePackageSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-1">Nombre del Paquete</label>
-                <input type="text" placeholder="Ej: Plan Mensual - 8 Clases" value={packageName} onChange={(e) => setPackageName(e.target.value)} className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500" required />
+      <AnimatePresence>
+        {showPackageModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-800 rounded-[2.5rem] shadow-clay w-full max-w-lg overflow-hidden border-2 border-slate-700">
+              <div className="px-8 py-6 flex justify-between items-center">
+                <h3 className="text-2xl font-black text-white">{packageModalMode === 'create' ? 'Crear Paquete' : 'Editar Paquete'}</h3>
+                <button onClick={() => setShowPackageModal(false)} className="bg-slate-700 w-10 h-10 rounded-full shadow-clay text-slate-300 font-bold text-xl hover:text-red-400 transition-colors">&times;</button>
               </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-1">Descripción Breve</label>
-                <input type="text" placeholder="Ej: Ideal para entrenar 2 veces por semana" value={packageDescription} onChange={(e) => setPackageDescription(e.target.value)} className="w-full bg-slate-800 border border-slate-700 text-slate-300 rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+              
+              <form onSubmit={handlePackageSubmit} className="px-8 pb-8 space-y-5">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-300 mb-1">Total de Clases</label>
-                  <input type="number" min="1" value={classCount} onChange={(e) => setClassCount(Number(e.target.value))} className="w-full bg-slate-800 border border-slate-700 text-indigo-400 font-bold rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500" required />
+                  <label className="block text-sm font-bold text-slate-300 mb-2 pl-2">Nombre del Paquete</label>
+                  <input type="text" placeholder="Ej: Plan Mensual - 8 Clases" value={packageName} onChange={(e) => setPackageName(e.target.value)} className="w-full bg-slate-900 shadow-inner text-white font-bold rounded-2xl p-4 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-700 transition-all" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-300 mb-1">Precio por Clase</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
-                    <input type="number" min="0" value={pricePerClass} onChange={(e) => setPricePerClass(Number(e.target.value))} className="w-full bg-slate-800 border border-slate-700 text-white font-bold rounded-xl p-3 pl-7 outline-none focus:ring-2 focus:ring-indigo-500" required />
+                  <label className="block text-sm font-bold text-slate-300 mb-2 pl-2">Descripción</label>
+                  <input type="text" value={packageDescription} onChange={(e) => setPackageDescription(e.target.value)} className="w-full bg-slate-900 shadow-inner text-white font-medium rounded-2xl p-4 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-700 transition-all" />
+                </div>
+                <div className="grid grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-300 mb-2 pl-2">Total Clases</label>
+                    <input type="number" min="1" value={classCount} onChange={(e) => setClassCount(Number(e.target.value))} className="w-full bg-slate-900 shadow-inner text-indigo-400 font-black rounded-2xl p-4 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-700 transition-all" required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-300 mb-2 pl-2">Precio por Clase</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-black">$</span>
+                      <input type="number" min="0" value={pricePerClass} onChange={(e) => setPricePerClass(Number(e.target.value))} className="w-full bg-slate-900 shadow-inner text-white font-black rounded-2xl p-4 pl-8 outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-700 transition-all" required />
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="bg-indigo-900/20 border border-indigo-500/30 p-4 rounded-xl mt-2 flex justify-between items-center">
-                <span className="text-indigo-200 font-medium">PRECIO TOTAL DEL PAQUETE:</span>
-                <span className="text-emerald-400 font-black text-xl">${(classCount * pricePerClass).toLocaleString('es-CO')}</span>
-              </div>
-
-              <div className="pt-4 flex gap-3">
-                <button type="button" onClick={() => setShowPackageModal(false)} className="flex-1 py-3 border border-slate-700 text-slate-300 font-semibold rounded-xl hover:bg-slate-800 transition">Cancelar</button>
-                <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-500 shadow-md transition">Guardar Paquete</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                <div className="bg-indigo-900/40 border border-indigo-500/20 p-6 rounded-3xl mt-4 flex justify-between items-center shadow-inner">
+                  <span className="text-indigo-300 font-black text-sm">PRECIO TOTAL:</span>
+                  <span className="text-indigo-400 font-black text-2xl">${(classCount * pricePerClass).toLocaleString('es-CO')}</span>
+                </div>
+                <div className="pt-6 flex gap-4">
+                  <ClayButton type="button" onClick={() => setShowPackageModal(false)} colorClass="bg-slate-700 text-slate-300 w-full" className="flex-1">Cancelar</ClayButton>
+                  <ClayButton type="submit" colorClass="bg-indigo-600 text-white w-full" className="flex-1">Guardar Paquete</ClayButton>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
+import ClayButton from '@/components/ClayButton'; 
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // ✨ NUEVO: Estado para la barra de búsqueda
+  // Estado para la barra de búsqueda
   const [searchTerm, setSearchTerm] = useState('');
   
   // Estados para el Modal de Crear/Editar
@@ -51,7 +53,7 @@ export default function CustomersPage() {
     fetchCustomers();
   }, []);
 
-  // ✨ LÓGICA DE BÚSQUEDA: Filtramos la lista en tiempo real
+  // LÓGICA DE BÚSQUEDA
   const filteredCustomers = customers.filter(customer => 
     customer.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -165,215 +167,209 @@ export default function CustomersPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-600"></div>
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-cyan-400"></div>
       </div>
     );
   }
 
   return (
-    <>
+    <div className="flex flex-col gap-8 max-w-7xl mx-auto pb-10">
+      
       {/* HEADER CON BUSCADOR */}
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-10 gap-6">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-4 gap-6">
         <div>
-          <h2 className="text-3xl font-extrabold text-white tracking-tight">Directorio de Alumnos</h2>
-          <p className="text-slate-400 mt-1">Gestiona las inscripciones y el saldo de clases (créditos) de cada niño.</p>
+          <h2 className="text-4xl font-black text-white tracking-tight">Directorio de Alumnos</h2>
+          <p className="text-slate-400 mt-2 font-medium text-lg">Gestiona las inscripciones y el saldo de clases de cada niño.</p>
         </div>
         
         <div className="flex flex-col sm:flex-row w-full xl:w-auto gap-4">
           <div className="relative w-full sm:w-72">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">🔍</span>
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">🔍</span>
             <input 
               type="text" 
-              placeholder="Buscar alumno por nombre..." 
+              placeholder="Buscar por nombre..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 text-white placeholder-slate-500 rounded-xl py-3 pl-11 pr-4 focus:ring-2 focus:ring-cyan-500 outline-none transition-all shadow-md"
+              // Efecto hundido (shadow-inner) para el input de búsqueda
+              className="w-full bg-slate-900 shadow-inner border border-slate-700 text-white placeholder-slate-500 rounded-2xl py-4 pl-12 pr-4 focus:ring-2 focus:ring-cyan-500 outline-none transition-all font-bold"
             />
             {searchTerm && (
               <button 
                 onClick={() => setSearchTerm('')} 
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 font-bold"
+                className="absolute right-4 top-1/2 -translate-y-1/2 bg-slate-800 w-8 h-8 rounded-full shadow-clay text-slate-400 hover:text-white font-bold flex items-center justify-center transition-colors"
               >
                 &times;
               </button>
             )}
           </div>
           
-          <button 
+          <ClayButton 
             onClick={openCreateModal}
-            className="w-full sm:w-auto bg-cyan-600 text-white font-bold px-6 py-3 rounded-xl shadow-md shadow-cyan-900/50 hover:bg-cyan-500 transition-all active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap"
+            colorClass="bg-cyan-500 text-white"
+            className="w-full sm:w-auto"
           >
-            <span className="text-xl leading-none">+</span> Nuevo Alumno
-          </button>
+            <span className="text-2xl leading-none">+</span> Nuevo Alumno
+          </ClayButton>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
         {customers.length === 0 ? (
-          <div className="col-span-full bg-slate-900 p-12 rounded-2xl border border-dashed border-slate-700 text-center">
-            <div className="text-4xl mb-3">👶</div>
-            <h3 className="text-lg font-bold text-white">No hay alumnos registrados</h3>
-            <p className="text-slate-400 font-medium mt-1">Registra a tu primer alumno y asígnale su paquete de clases.</p>
+          <div className="col-span-full bg-slate-800 rounded-[3rem] p-16 text-center shadow-clay border-2 border-dashed border-slate-600">
+            <div className="text-6xl mb-4">👶</div>
+            <h3 className="text-2xl font-black text-white">No hay alumnos registrados</h3>
+            <p className="text-slate-400 font-medium mt-2 text-lg">Registra a tu primer alumno y asígnale su paquete de clases.</p>
           </div>
         ) : filteredCustomers.length === 0 ? (
-          <div className="col-span-full bg-slate-900 p-12 rounded-2xl border border-slate-800 text-center shadow-xl">
-            <div className="text-4xl mb-3">🔎</div>
-            <h3 className="text-lg font-bold text-white">No hay resultados</h3>
-            <p className="text-slate-400 font-medium mt-1">No encontramos ningún alumno llamado "{searchTerm}".</p>
+          <div className="col-span-full bg-slate-800 rounded-[3rem] p-16 text-center shadow-clay border-2 border-slate-700">
+            <div className="text-6xl mb-4">🔎</div>
+            <h3 className="text-2xl font-black text-white">No hay resultados</h3>
+            <p className="text-slate-400 font-medium mt-2 text-lg">No encontramos ningún alumno llamado "{searchTerm}".</p>
           </div>
         ) : (
-          filteredCustomers.map((customer: any) => (
-            <div key={customer.id} className="bg-slate-900 rounded-2xl p-6 border border-slate-800 shadow-xl hover:border-cyan-500/50 transition-all flex flex-col justify-between group">
+          filteredCustomers.map((customer: any, index: number) => (
+            <motion.div 
+              key={customer.id} 
+              initial={{ opacity: 0, y: 30 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              transition={{ duration: 0.5, delay: index * 0.05, type: "spring" }}
+              className="bg-slate-800 rounded-[2rem] p-6 shadow-clay flex flex-col justify-between relative group border-2 border-slate-700/50"
+            >
               
-              <div className="flex justify-between items-start mb-4">
+              <div className="flex justify-between items-start mb-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-slate-800 text-cyan-400 border border-slate-700 rounded-full flex items-center justify-center font-bold text-xl shadow-sm">
+                  <div className="w-16 h-16 bg-slate-900 text-cyan-400 border border-slate-700 rounded-2xl flex items-center justify-center font-black text-3xl shadow-inner">
                     {customer.name.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-white leading-tight truncate max-w-[150px]">{customer.name}</h3>
-                    <p className="text-sm text-slate-400">{customer.phone || 'Sin teléfono'}</p>
+                    <h3 className="text-xl font-black text-white leading-tight truncate max-w-[150px]">{customer.name}</h3>
+                    <p className="text-sm text-slate-400 font-bold">{customer.phone || 'Sin teléfono'}</p>
                   </div>
                 </div>
                 
-                <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                  <button 
-                    onClick={() => openEditModal(customer)} 
-                    className="flex items-center justify-center w-10 h-10 md:w-8 md:h-8 bg-slate-800 md:bg-transparent text-slate-400 md:text-slate-500 hover:text-cyan-400 hover:bg-slate-700 md:hover:bg-slate-800 rounded-lg transition-colors"
-                    title="Editar"
-                  >
-                    ✏️
-                  </button>
-                  <button 
-                    onClick={() => confirmDelete(customer.id, customer.name)} 
-                    className="flex items-center justify-center w-10 h-10 md:w-8 md:h-8 bg-slate-800 md:bg-transparent text-slate-400 md:text-slate-500 hover:text-red-400 hover:bg-slate-700 md:hover:bg-slate-800 rounded-lg transition-colors"
-                    title="Eliminar"
-                  >
-                    ✖
-                  </button>
+                <div className="flex gap-2 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
+                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => openEditModal(customer)} className="bg-slate-700 text-amber-400 w-10 h-10 rounded-xl shadow-clay flex items-center justify-center text-lg">✏️</motion.button>
+                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => confirmDelete(customer.id, customer.name)} className="bg-slate-700 text-red-400 w-10 h-10 rounded-xl shadow-clay flex items-center justify-center text-lg">🗑️</motion.button>
                 </div>
               </div>
 
-              <div className="mt-4 pt-4 border-t border-slate-800 flex items-center justify-between">
-                <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">Créditos Disponibles</span>
-                <div className={`px-4 py-1.5 rounded-full font-extrabold text-sm border ${
+              <div className="bg-slate-900/60 p-4 rounded-2xl shadow-inner border border-slate-700/30 flex items-center justify-between mb-4">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Créditos Disponibles</span>
+                <div className={`px-4 py-1.5 rounded-xl font-black shadow-clay ${
                   (customer.monthlyCredits || 0) > 0 
-                    ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' 
-                    : 'bg-red-500/10 text-red-400 border-red-500/20'
+                    ? 'bg-cyan-500 text-white' 
+                    : 'bg-red-500 text-white'
                 }`}>
                   {customer.monthlyCredits || 0} Clases
                 </div>
               </div>
 
-              <button 
+              <ClayButton 
                 onClick={() => generateAndCopyMagicLink(customer.id, customer.magicToken)}
-                className="mt-4 w-full py-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-xl text-sm font-bold transition-colors flex justify-center items-center gap-2 active:scale-95"
+                colorClass="bg-indigo-600 text-white w-full"
+                className="py-3 text-sm"
               >
                 <span>🔗</span> Copiar Link del Portal
-              </button>
+              </ClayButton>
 
-            </div>
+            </motion.div>
           ))
         )}
       </div>
 
       {/* MODAL DINÁMICO (Crear y Editar) */}
-      {showModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-5 border-b border-slate-800 flex justify-between items-center bg-slate-900">
-              <h3 className="text-lg font-extrabold text-white">
-                {modalMode === 'create' ? 'Inscribir Alumno' : 'Editar Alumno'}
-              </h3>
-              <button onClick={() => { setShowModal(false); resetForm(); }} className="text-slate-500 hover:text-slate-300 font-bold text-2xl">&times;</button>
-            </div>
-            
-            {formError && (
-              <div className="mx-6 mt-4 bg-red-500/10 border-l-4 border-red-500 p-3 rounded-md">
-                <p className="text-sm text-red-400 font-medium">{formError}</p>
+      <AnimatePresence>
+        {showModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-800 rounded-[2.5rem] shadow-clay w-full max-w-md overflow-hidden border-2 border-slate-700">
+              <div className="px-8 py-6 flex justify-between items-center">
+                <h3 className="text-2xl font-black text-white">
+                  {modalMode === 'create' ? 'Inscribir Alumno' : 'Editar Alumno'}
+                </h3>
+                <button onClick={() => { setShowModal(false); resetForm(); }} className="bg-slate-700 w-10 h-10 rounded-full shadow-clay text-slate-300 font-bold text-xl hover:text-red-400 transition-colors">&times;</button>
               </div>
-            )}
-            
-            <form onSubmit={handleSubmit} className="p-6 space-y-5">
-              <div>
-                <label className="block text-sm font-bold text-slate-300 mb-1.5">Nombre Completo del Niño/a</label>
-                <input 
-                  type="text" placeholder="Ej. Mateo García" value={name} onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-500 rounded-xl p-3 focus:ring-2 focus:ring-cyan-500 outline-none" required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-300 mb-1.5">Teléfono del Acudiente</label>
-                <input 
-                  type="tel" placeholder="Ej. 300 123 4567" value={phone} onChange={(e) => setPhone(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-500 rounded-xl p-3 focus:ring-2 focus:ring-cyan-500 outline-none" required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-300 mb-1.5">Correo del Acudiente (Opcional)</label>
-                <input 
-                  type="email" placeholder="correo@ejemplo.com" value={email} onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 text-white placeholder-slate-500 rounded-xl p-3 focus:ring-2 focus:ring-cyan-500 outline-none" 
-                />
-              </div>
-              <div className="bg-cyan-900/20 border border-cyan-800/50 p-4 rounded-xl">
-                <label className="block text-sm font-bold text-cyan-400 mb-1.5 flex items-center gap-2">
-                  <span>🎟️</span> {modalMode === 'create' ? 'Paquete de Clases (Créditos)' : 'Actualizar Créditos'}
-                </label>
-                <p className="text-xs text-slate-400 mb-2">
-                  {modalMode === 'create' 
-                    ? 'Cuántas clases está pagando en su mensualidad actual.' 
-                    : 'Modifica el saldo actual si el cliente pagó una nueva mensualidad o necesita un ajuste.'}
-                </p>
-                <input 
-                  type="number" value={credits} onChange={(e) => setCredits(e.target.value)} min="0"
-                  className="w-full bg-slate-800 border border-cyan-800 text-white rounded-xl p-3 focus:ring-2 focus:ring-cyan-500 outline-none" required
-                />
-              </div>
-              <div className="pt-2 flex gap-3">
-                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} className="flex-1 px-4 py-3.5 border border-slate-700 text-slate-300 font-bold rounded-xl hover:bg-slate-800 transition-colors">Cancelar</button>
-                <button type="submit" className="flex-1 px-4 py-3.5 bg-cyan-600 text-white font-bold rounded-xl hover:bg-cyan-500 shadow-md transition-all">
-                  {modalMode === 'create' ? 'Inscribir Alumno' : 'Guardar Cambios'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+              
+              {formError && (
+                <div className="mx-8 mt-2 bg-red-900/40 border border-red-500/50 p-4 rounded-2xl shadow-inner">
+                  <p className="text-sm text-red-400 font-bold text-center">{formError}</p>
+                </div>
+              )}
+              
+              <form onSubmit={handleSubmit} className="p-8 space-y-5">
+                <div>
+                  <label className="block text-sm font-bold text-slate-300 mb-2 pl-2">Nombre Completo del Niño/a</label>
+                  <input 
+                    type="text" placeholder="Ej. Mateo García" value={name} onChange={(e) => setName(e.target.value)}
+                    className="w-full bg-slate-900 shadow-inner border border-slate-700 text-white font-bold placeholder-slate-600 rounded-2xl p-4 focus:ring-2 focus:ring-cyan-500 outline-none transition-all" required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-300 mb-2 pl-2">Teléfono del Acudiente</label>
+                  <input 
+                    type="tel" placeholder="Ej. 300 123 4567" value={phone} onChange={(e) => setPhone(e.target.value)}
+                    className="w-full bg-slate-900 shadow-inner border border-slate-700 text-white font-bold placeholder-slate-600 rounded-2xl p-4 focus:ring-2 focus:ring-cyan-500 outline-none transition-all" required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-300 mb-2 pl-2">Correo del Acudiente (Opcional)</label>
+                  <input 
+                    type="email" placeholder="correo@ejemplo.com" value={email} onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-slate-900 shadow-inner border border-slate-700 text-white font-bold placeholder-slate-600 rounded-2xl p-4 focus:ring-2 focus:ring-cyan-500 outline-none transition-all" 
+                  />
+                </div>
+                
+                <div className="bg-slate-900/60 p-5 rounded-3xl shadow-inner border border-slate-700/50">
+                  <label className="block text-sm font-black text-cyan-400 mb-2 flex items-center gap-2">
+                    <span>🎟️</span> {modalMode === 'create' ? 'Paquete Inicial (Créditos)' : 'Ajustar Créditos'}
+                  </label>
+                  <p className="text-xs text-slate-400 mb-4 font-medium">
+                    {modalMode === 'create' 
+                      ? 'Cuántas clases está pagando en su primera mensualidad.' 
+                      : 'Modifica el saldo actual si el cliente renovó o necesita un ajuste.'}
+                  </p>
+                  <input 
+                    type="number" value={credits} onChange={(e) => setCredits(e.target.value)} min="0"
+                    className="w-full bg-slate-800 shadow-inner border border-cyan-800/50 text-white font-black text-xl rounded-2xl p-4 focus:ring-2 focus:ring-cyan-500 outline-none text-center" required
+                  />
+                </div>
+
+                <div className="pt-4 flex gap-4">
+                  <ClayButton type="button" onClick={() => { setShowModal(false); resetForm(); }} colorClass="bg-slate-700 text-slate-300 w-full" className="flex-1">Cancelar</ClayButton>
+                  <ClayButton type="submit" colorClass="bg-cyan-600 text-white w-full" className="flex-1">
+                    {modalMode === 'create' ? 'Inscribir' : 'Guardar'}
+                  </ClayButton>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* MODAL DE CONFIRMACIÓN DE BORRADO */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 w-full max-w-sm overflow-hidden p-6 text-center animate-in fade-in zoom-in-95 duration-200">
-            
-            <div className="w-16 h-16 bg-red-500/10 text-red-500 border border-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner">
-              ⚠️
-            </div>
-            
-            <h3 className="text-xl font-extrabold text-white mb-2">
-              ¿Eliminar a {customerToDelete?.name}?
-            </h3>
-            <p className="text-slate-400 mb-6 text-sm">
-              Esta acción no se puede deshacer. Se eliminarán sus accesos.
-            </p>
-            
-            <div className="flex gap-3">
-              <button 
-                onClick={() => setShowDeleteModal(false)} 
-                className="flex-1 px-4 py-3 border border-slate-700 text-slate-300 font-bold rounded-xl hover:bg-slate-800 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={executeDelete} 
-                className="flex-1 px-4 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-500 shadow-md shadow-red-900/20 transition-all active:scale-95"
-              >
-                Sí, eliminar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+      <AnimatePresence>
+        {showDeleteModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-800 rounded-[2.5rem] shadow-clay border-2 border-slate-700 w-full max-w-sm overflow-hidden p-8 text-center">
+              
+              <div className="w-20 h-20 bg-slate-900 text-red-500 border border-slate-700 rounded-3xl flex items-center justify-center mx-auto mb-6 text-4xl shadow-inner">
+                ⚠️
+              </div>
+              
+              <h3 className="text-2xl font-black text-white mb-3">
+                ¿Eliminar a <br/><span className="text-red-400">{customerToDelete?.name}</span>?
+              </h3>
+              <p className="text-slate-400 mb-8 font-medium">
+                Esta acción no se puede deshacer y el alumno perderá acceso a su portal.
+              </p>
+              
+              <div className="flex gap-4">
+                <ClayButton onClick={() => setShowDeleteModal(false)} colorClass="bg-slate-700 text-slate-300 w-full" className="flex-1 py-3 text-sm">Cancelar</ClayButton>
+                <ClayButton onClick={executeDelete} colorClass="bg-red-600 text-white w-full" className="flex-1 py-3 text-sm">Sí, eliminar</ClayButton>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
