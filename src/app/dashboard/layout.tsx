@@ -20,9 +20,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   ];
 
   return (
-    <div className="min-h-screen bg-transparent text-slate-200 flex font-sans selection:bg-cyan-500/30 pb-20 md:pb-0">
+    // Cambiamos pb-20 a pb-24 para darle espacio a la nueva barra flotante
+    <div className="min-h-screen bg-transparent text-slate-200 flex font-sans selection:bg-cyan-500/30 pb-24 md:pb-0">
       
-      {/* SIDEBAR OSCURO 3D */}
+      {/* SIDEBAR OSCURO 3D (PC) */}
       <aside className="w-64 bg-slate-900/60 border-r-2 border-slate-800 hidden md:flex flex-col backdrop-blur-2xl shadow-[4px_0_24px_rgba(0,0,0,0.4)] z-20">
         <div className="p-6 border-b-2 border-slate-800 flex items-center gap-3">
           <div className="w-10 h-10 bg-cyan-600 rounded-2xl flex items-center justify-center font-bold text-xl text-white shadow-clay">
@@ -81,16 +82,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </main>
 
-      {/* NAVEGACIÓN MÓVIL OSCURA */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/90 backdrop-blur-xl border-t-2 border-slate-800 flex justify-around items-center p-2 pb-safe z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+      {/* ✨ NAVEGACIÓN MÓVIL FLOTANTE (TIPO PÍLDORA 3D) */}
+      <nav className="md:hidden fixed bottom-6 left-4 right-4 bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 flex justify-around items-center p-2 z-50 shadow-clay rounded-[2rem]">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link 
               key={item.name} 
               href={item.href}
-              className={`flex flex-col items-center justify-center w-full py-2 gap-1 rounded-xl transition-all ${
-                isActive ? 'text-cyan-400' : 'text-slate-500 hover:text-cyan-300'
+              // Si está activo, le ponemos un fondo hundido para que resalte como un botón presionado
+              className={`flex flex-col items-center justify-center w-full py-2 gap-1 rounded-2xl transition-all ${
+                isActive ? 'bg-slate-800/80 shadow-inner border border-slate-700/50 text-cyan-400' : 'text-slate-500 hover:text-cyan-300'
               }`}
             >
               <span className={`text-2xl ${isActive ? 'scale-110 drop-shadow-md' : 'scale-100'} transition-transform`}>{item.icon}</span>
