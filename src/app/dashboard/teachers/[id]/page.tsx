@@ -77,10 +77,10 @@ export default function TeacherProfilePage() {
 
   // 4. Adaptamos las citas para FullCalendar
   const calendarEvents = appointments.map((apt: any) => {
-    const startDate = new Date(apt.startTime);
+    const startDate = new Date(apt.startTime.substring(0, 19));
     const service = services.find(s => s.id === apt.serviceId);
     const duration = service ? service.durationMinutes : 60;
-    const endDate = new Date(startDate.getTime() + duration * 60 * 1000); 
+    const endDate = new Date(apt.endTime ? apt.endTime.substring(0, 19) : startDate.getTime() + (duration * 60 * 1000));
 
     // Colores por estado (Pendiente, Completada, Cancelada)
     let color = '#0891B2'; // Cyan-600 por defecto (Pendiente)

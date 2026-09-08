@@ -83,7 +83,17 @@ export default function ServicesPage() {
 
   const handleServiceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = { name, durationMinutes: duration, price, instructorPayout, maxCapacity, businessId: 1 };
+    // Añadimos el ID dinámicamente si estamos en modo edición para que C# no lo rechace
+    const payload = { 
+      id: serviceModalMode === 'edit' ? editingServiceId : 0,
+      name, 
+      durationMinutes: duration, 
+      price, 
+      instructorPayout, 
+      maxCapacity, 
+      businessId: 1 
+    };
+    
     const loadingToast = toast.loading(serviceModalMode === 'create' ? 'Creando clase...' : 'Guardando cambios...');
 
     try {
@@ -143,13 +153,17 @@ export default function ServicesPage() {
 
   const handlePackageSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Añadimos el ID y calculamos el totalPrice antes de enviarlo a C#
     const payload = { 
+      id: packageModalMode === 'edit' ? editingPackageId : 0,
       name: packageName, 
       description: packageDescription, 
       classCount, 
-      pricePerClass, 
+      pricePerClass,
+      totalPrice: classCount * pricePerClass, // C# necesita este dato para que el modelo sea válido
       businessId: 1 
     };
+    
     const loadingToast = toast.loading(packageModalMode === 'create' ? 'Creando paquete...' : 'Guardando cambios...');
 
     try {

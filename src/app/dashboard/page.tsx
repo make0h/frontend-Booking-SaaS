@@ -126,7 +126,9 @@ export default function DashboardPage() {
 
   const addDateToCart = () => {
     if (!tempDateOnly || !tempTimeOnly) return setFormError("Ingresa la fecha y la hora exacta");
-    const dateTimeString = `${tempDateOnly}T${tempTimeOnly}`;
+    // Creamos la fecha local y la pasamos a formato universal seguro
+    const localDate = new Date(`${tempDateOnly}T${tempTimeOnly}:00`);
+    const dateTimeString = localDate.toISOString();
     const selectedDateObj = new Date(dateTimeString);
     if (selectedDateObj < new Date()) return setFormError("No puedes agendar clases en el pasado");
     
@@ -161,9 +163,11 @@ export default function DashboardPage() {
         const mm = String(currentDate.getMonth() + 1).padStart(2, '0');
         const dd = String(currentDate.getDate()).padStart(2, '0');
         
+        const localDate = new Date(`${yyyy}-${mm}-${dd}T${tempTimeOnly}:00`);
+
         newDates.push({
           id: Math.random().toString(),
-          value: `${yyyy}-${mm}-${dd}T${tempTimeOnly}`
+          value: localDate.toISOString()
         });
         classesAdded++;
       }
@@ -224,7 +228,8 @@ export default function DashboardPage() {
   const handleUpdateAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editDateOnly || !editTimeOnly) return toast.error("Ingresa la fecha y la hora válida");
-    const fullDateTime = `${editDateOnly}T${editTimeOnly}`;
+    const localDate = new Date(`${editDateOnly}T${editTimeOnly}:00`);
+    const fullDateTime = localDate.toISOString();
     const loadingToast = toast.loading('Guardando cambios...');
     try {
       await api.put(`/appointments/${selectedAppointment.id}`, {
@@ -293,10 +298,13 @@ export default function DashboardPage() {
   };
 
   const calendarEvents = appointments.map((apt: any) => {
+    // El navegador lee el UTC que manda Postgres y lo pasa a hora de Colombia solito
     const startDate = new Date(apt.startTime);
     const service = services.find(s => s.id === apt.serviceId);
     const duration = service ? service.durationMinutes : 60;
-    const endDate = new Date(startDate.getTime() + duration * 60 * 1000); 
+    
+    // Si Postgres manda endTime lo usamos, si no, lo calculamos
+    const endDate = apt.endTime ? new Date(apt.endTime) : new Date(startDate.getTime() + (duration * 60 * 1000)); 
 
     const teacher = teachers.find(t => t.id === apt.employeeId)?.name || 'Profe';
     const customer = customers.find(c => c.id === apt.customerId)?.name || 'Alumno';
@@ -309,8 +317,8 @@ export default function DashboardPage() {
     return {
       id: apt.id.toString(),
       title: `${service?.name || 'Clase'} - ${customer} (${teacher})`,
-      start: startDate,
-      end: endDate,
+      start: startDate, // 👈 Se pasa el objeto Date directamente
+      end: endDate,     // 👈 Se pasa el objeto Date directamente
       backgroundColor: color,
       borderColor: color,
       extendedProps: { ...apt, customerName: customer, teacherName: teacher, serviceName: service?.name }

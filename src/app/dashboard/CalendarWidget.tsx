@@ -66,8 +66,8 @@ export default function CalendarWidget({ events, onEventClick, onDateClick }: an
         initialView="timeGridWeek" 
         
         allDaySlot={false}
-        slotMinTime="06:00:00"
-        slotMaxTime="22:00:00"
+        slotMinTime="07:00:00"
+        slotMaxTime="20:00:00"
         slotDuration="00:30:00"
         expandRows={true}
         height="auto" 
