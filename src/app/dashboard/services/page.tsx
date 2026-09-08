@@ -268,7 +268,7 @@ export default function ServicesPage() {
       {/* ================= MODAL DE CLASES ================= */}
       <AnimatePresence>
         {showServiceModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-[60]">
             <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-800 rounded-[2.5rem] shadow-clay w-full max-w-lg overflow-hidden border-2 border-slate-700">
               <div className="px-8 py-6 flex justify-between items-center">
                 <h3 className="text-2xl font-black text-white">{serviceModalMode === 'create' ? 'Configurar Nueva Clase' : 'Editar Clase'}</h3>
@@ -319,7 +319,7 @@ export default function ServicesPage() {
       {/* ================= MODAL DE PAQUETES ================= */}
       <AnimatePresence>
         {showPackageModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-[60]">
             <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-800 rounded-[2.5rem] shadow-clay w-full max-w-lg overflow-hidden border-2 border-slate-700">
               <div className="px-8 py-6 flex justify-between items-center">
                 <h3 className="text-2xl font-black text-white">{packageModalMode === 'create' ? 'Crear Paquete' : 'Editar Paquete'}</h3>

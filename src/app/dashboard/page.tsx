@@ -391,7 +391,7 @@ export default function DashboardPage() {
       {/* ============================================== */}
       <AnimatePresence>
         {showCreateModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-[60]">
             <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-800 rounded-[2.5rem] shadow-clay border-2 border-slate-700 w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
               
               <div className="px-8 py-6 border-b border-slate-700/50 flex justify-between items-center z-10">
@@ -580,7 +580,7 @@ export default function DashboardPage() {
       {/* MODAL DE EDICIÓN */}
       <AnimatePresence>
         {showEditModal && selectedAppointment && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-[60]">
             <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-800 rounded-[2.5rem] shadow-clay border-2 border-slate-700 w-full max-w-md overflow-hidden">
               
               <div className="px-8 py-6 border-b border-slate-700/50 flex justify-between items-start bg-slate-800">

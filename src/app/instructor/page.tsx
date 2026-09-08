@@ -224,7 +224,7 @@ export default function InstructorPortalPage() {
       )}
 
       {showModal && selectedAppointment && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
            <div className="bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
              
              <div className="px-6 py-5 border-b border-slate-800 flex justify-between items-center bg-slate-900">

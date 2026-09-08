@@ -264,7 +264,7 @@ export default function ParentPortalPage({ params }: { params: Promise<{ token: 
       {/* ============================================================ */}
       <AnimatePresence>
         {showStoreModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-[60]">
             <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-800 rounded-[2.5rem] shadow-clay border-2 border-slate-700 w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
               
               <div className="px-8 py-6 border-b-2 border-slate-700/50 flex justify-between items-center bg-slate-800 z-10">
@@ -345,7 +345,7 @@ export default function ParentPortalPage({ params }: { params: Promise<{ token: 
       {/* ============================================================ */}
       <AnimatePresence>
         {showPaymentModal && selectedProduct && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-[60]">
             <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-800 rounded-[2.5rem] shadow-clay border-2 border-slate-700 w-full max-w-md overflow-hidden">
               
               <div className="px-8 py-6 border-b-2 border-slate-700/50 flex justify-between items-center bg-slate-800">
@@ -409,7 +409,7 @@ export default function ParentPortalPage({ params }: { params: Promise<{ token: 
       {/* Modal de Detalles de Clase */}
       <AnimatePresence>
         {showModal && selectedAppointment && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-[60]">
             <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-800 rounded-[2.5rem] shadow-clay border-2 border-slate-700 w-full max-w-sm overflow-hidden">
               <div className="px-8 py-6 border-b-2 border-slate-700/50 flex justify-between items-center bg-slate-800">
                 <h3 className="text-2xl font-black text-white truncate pr-4">Detalle de Clase</h3>
@@ -462,7 +462,7 @@ export default function ParentPortalPage({ params }: { params: Promise<{ token: 
       {/* Modal Confirmación de Cancelación */}
       <AnimatePresence>
         {showCancelConfirmModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-[60]">
             <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-800 rounded-[2.5rem] shadow-clay border-2 border-slate-700 w-full max-w-sm overflow-hidden p-8 text-center">
               <div className="w-20 h-20 bg-slate-900 text-red-500 border border-slate-700 rounded-3xl flex items-center justify-center mx-auto mb-6 text-4xl shadow-inner">⚠️</div>
               <h3 className="text-2xl font-black text-white mb-3">¿Cancelar esta clase?</h3>

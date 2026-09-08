@@ -83,7 +83,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </main>
 
       {/* ✨ NAVEGACIÓN MÓVIL FLOTANTE (TIPO PÍLDORA 3D) */}
-      <nav className="md:hidden fixed bottom-6 left-4 right-4 bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 flex justify-around items-center p-2 z-50 shadow-clay rounded-[2rem]">
+      <nav className="md:hidden fixed bottom-6 left-4 right-4 bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 flex justify-around items-center p-2 z-40 shadow-clay rounded-[2rem]">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
