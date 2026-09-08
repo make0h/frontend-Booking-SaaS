@@ -191,8 +191,8 @@ export default function ParentPortalPage({ params }: { params: Promise<{ token: 
   }
 
   const calendarEvents = appointments.map((apt: any) => {
-    const startDate = new Date(apt.startTime.substring(0, 19));
-    const endDate = new Date(apt.endTime ? apt.endTime.substring(0, 19) : startDate.getTime() + (apt.durationMinutes * 60 * 1000));
+    const startDate = new Date(apt.startTime);
+    const endDate = apt.endTime ? new Date(apt.endTime) : new Date(startDate.getTime() + (apt.durationMinutes * 60 * 1000));
     let color = '#0891B2'; 
     if (apt.status === 1 || apt.status === 'Confirmed') color = '#F59E0B'; 
     if (apt.status === 2 || apt.status === 'Completed') color = '#10B981'; 
